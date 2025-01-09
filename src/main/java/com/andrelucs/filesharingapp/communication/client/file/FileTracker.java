@@ -7,10 +7,8 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class FileTracker {
 
@@ -109,7 +107,7 @@ public class FileTracker {
     }
 
     public List<File> getSharedFiles() {
-        return files.values().stream().toList();
+        return new ArrayList<>(files.values());
     }
 
     public void deleteFile(File file) {
