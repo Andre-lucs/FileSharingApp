@@ -1,0 +1,33 @@
+
+.file-item {
+    -fx-border-radius: 5px;
+    -fx-background-radius: 5px;
+    -fx-background-color: '#fff';
+    -fx-border-color: '#1E1E1E';
+    -fx-border-width: 2px;
+    -fx-background-insets: 3px;
+}
+
+.file-item:hover {
+    -fx-background-color: 'gray';
+    -fx-text-fill: '#fff';
+}
+
+.file-item:pressed {
+    -fx-background-color: '#1E1E1E';
+}
+
+.file-item:pressed Label, .file-item:pressed TextFlow{
+    -fx-text-fill: '#fff';
+}
+
+.file-item:pressed ImageView {
+    -fx-effect: dropshadow(three-pass-box, rgba(255, 255, 255, 1), 1, 2, 0, 0);
+}
+
+.file-item Label {
+    -fx-text-fill: '#1E1E1E';
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-font-family: "Arial";
+}

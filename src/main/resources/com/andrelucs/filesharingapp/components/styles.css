@@ -1,0 +1,10 @@
+.user-sharing{
+    -fx-border-radius: 5px;
+    -fx-background-radius: 5px;
+    /*-fx-background-color: '#fff';*/
+    -fx-border-color: '#1E1E1E';
+    -fx-border-width: 2px;
+    -fx-background-insets: 3px;
+    -fx-spacing: 15px;
+    -fx-padding: 5px;
+}

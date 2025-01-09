@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.TilePane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<AnchorPane prefHeight="800.0" prefWidth="1200.0" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.andrelucs.filesharingapp.controllers.DownloadTabController">
+            <VBox alignment="TOP_CENTER" spacing="10.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                <children>
+         <HBox alignment="CENTER" minHeight="-Infinity" prefWidth="590.0" spacing="20.0" VBox.vgrow="NEVER">
+            <children>
+                          <TextField fx:id="searchInput" onAction="#searchForFiles" promptText="ex: mp3, filme" HBox.hgrow="ALWAYS" />
+               <Button mnemonicParsing="false" onAction="#searchForFiles" text="Search" HBox.hgrow="ALWAYS" />
+            </children>
+            <padding>
+               <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+            </padding>
+         </HBox>
+                    <HBox VBox.vgrow="ALWAYS">
+                        <children>
+                              <ScrollPane fitToHeight="true" fitToWidth="true" hbarPolicy="NEVER">
+                                  <content>
+                                      <AnchorPane>
+                        <children>
+                           <TilePane fx:id="searchResults" alignment="TOP_CENTER" hgap="20.0" prefColumns="3" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                              <children>
+                                 <Label text="Search results will appear here." textAlignment="CENTER">
+                                    <font>
+                                       <Font name="System Bold" size="18.0" />
+                                    </font>
+                                 </Label>
+                              </children>
+                           </TilePane>
+                        </children>
+                                      </AnchorPane>
+                                  </content>
+                              </ScrollPane>
+                            <AnchorPane layoutX="477.0" layoutY="10.0" HBox.hgrow="NEVER">
+                                <HBox.margin>
+                                    <Insets />
+                                </HBox.margin>
+                                <children>
+                     <VBox alignment="TOP_CENTER" spacing="10.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                        <children>
+                                            <ImageView fx:id="fileIcon" fitHeight="80.0" fitWidth="80.0" pickOnBounds="true" preserveRatio="true">
+                                                <image>
+                                                    <Image url="@../../../icons/file-90.png" />
+                                                </image>
+                                            </ImageView>
+                                            <Label fx:id="fileNameLabel" text="FIlename.txt">
+                                                <font>
+                                                    <Font size="24.0" />
+                                                </font>
+                                            </Label>
+                                            <HBox alignment="CENTER" spacing="5.0">
+                                                <children>
+                                                    <Label text="FIleSize:">
+                                                        <font>
+                                                            <Font size="18.0" />
+                                                        </font>
+                                                    </Label>
+                                                    <Label fx:id="fileSizeLabel" text="23 kb">
+                                    <font>
+                                       <Font size="18.0" />
+                                    </font>
+                                 </Label>
+                                                </children>
+                                            </HBox>
+                                            <Separator />
+                           <HBox>
+                              <children>
+                                                  <Label text="Users sharing:">
+                                    <font>
+                                       <Font name="System Bold" size="18.0" />
+                                    </font>
+                                 </Label>
+                              </children>
+                           </HBox>
+                           <ScrollPane fitToWidth="true" hbarPolicy="NEVER" prefHeight="200.0" prefWidth="200.0">
+                             <content>
+                               <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="200.0" prefWidth="200.0">
+                                    <children>
+                                       <TilePane fx:id="usersSharing" hgap="8.0" vgap="10.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                          <children>
+                                             <CheckBox mnemonicParsing="false" style="-fx-border-width: 2px; -fx-border-color: black; -fx-border-radius: 2px;" text="192.168.0.12">
+                                                <padding>
+                                                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                                </padding>
+                                             </CheckBox>
+                                             <CheckBox layoutX="20.0" layoutY="20.0" mnemonicParsing="false" style="-fx-border-width: 2px; -fx-border-color: black; -fx-border-radius: 2px;" text="192.168.0.12">
+                                                <padding>
+                                                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                                </padding>
+                                             </CheckBox>
+                                             <CheckBox layoutX="154.0" layoutY="20.0" mnemonicParsing="false" style="-fx-border-width: 2px; -fx-border-color: black; -fx-border-radius: 2px;" text="192.168.0.12">
+                                                <padding>
+                                                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                                </padding>
+                                             </CheckBox>
+                                             <CheckBox layoutX="288.0" layoutY="20.0" mnemonicParsing="false" style="-fx-border-width: 2px; -fx-border-color: black; -fx-border-radius: 2px;" text="192.168.0.12">
+                                                <padding>
+                                                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                                </padding>
+                                             </CheckBox>
+                                             <CheckBox layoutX="20.0" layoutY="70.0" mnemonicParsing="false" style="-fx-border-width: 2px; -fx-border-color: black; -fx-border-radius: 2px;" text="192.168.0.12">
+                                                <padding>
+                                                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                                </padding>
+                                             </CheckBox>
+                                             <CheckBox layoutX="154.0" layoutY="70.0" mnemonicParsing="false" style="-fx-border-width: 2px; -fx-border-color: black; -fx-border-radius: 2px;" text="192.168.0.12">
+                                                <padding>
+                                                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                                </padding>
+                                             </CheckBox>
+                                             <CheckBox layoutX="288.0" layoutY="70.0" mnemonicParsing="false" style="-fx-border-width: 2px; -fx-border-color: black; -fx-border-radius: 2px;" text="192.168.0.12">
+                                                <padding>
+                                                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                                </padding>
+                                             </CheckBox>
+                                             <CheckBox layoutX="20.0" layoutY="120.0" mnemonicParsing="false" style="-fx-border-width: 2px; -fx-border-color: black; -fx-border-radius: 2px;" text="192.168.0.12">
+                                                <padding>
+                                                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                                </padding>
+                                             </CheckBox>
+                                             <CheckBox layoutX="154.0" layoutY="120.0" mnemonicParsing="false" style="-fx-border-width: 2px; -fx-border-color: black; -fx-border-radius: 2px;" text="192.168.0.12">
+                                                <padding>
+                                                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                                </padding>
+                                             </CheckBox>
+                                             <CheckBox layoutX="10.0" layoutY="120.0" mnemonicParsing="false" style="-fx-border-width: 2px; -fx-border-color: black; -fx-border-radius: 2px;" text="192.168.0.12">
+                                                <padding>
+                                                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                                </padding>
+                                             </CheckBox>
+                                             <CheckBox layoutX="141.0" layoutY="120.0" mnemonicParsing="false" style="-fx-border-width: 2px; -fx-border-color: black; -fx-border-radius: 2px;" text="192.168.0.12">
+                                                <padding>
+                                                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                                </padding>
+                                             </CheckBox>
+                                             <CheckBox layoutX="272.0" layoutY="120.0" mnemonicParsing="false" style="-fx-border-width: 2px; -fx-border-color: black; -fx-border-radius: 2px;" text="192.168.0.12">
+                                                <padding>
+                                                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                                </padding>
+                                             </CheckBox>
+                                             <CheckBox layoutX="404.0" layoutY="120.0" mnemonicParsing="false" style="-fx-border-width: 2px; -fx-border-color: black; -fx-border-radius: 2px;" text="192.168.0.12">
+                                                <padding>
+                                                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                                </padding>
+                                             </CheckBox>
+                                             <CheckBox layoutX="10.0" layoutY="169.0" mnemonicParsing="false" style="-fx-border-width: 2px; -fx-border-color: black; -fx-border-radius: 2px;" text="192.168.0.12">
+                                                <padding>
+                                                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                                </padding>
+                                             </CheckBox>
+                                             <CheckBox layoutX="141.0" layoutY="169.0" mnemonicParsing="false" style="-fx-border-width: 2px; -fx-border-color: black; -fx-border-radius: 2px;" text="192.168.0.12">
+                                                <padding>
+                                                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                                </padding>
+                                             </CheckBox>
+                                             <CheckBox layoutX="272.0" layoutY="169.0" mnemonicParsing="false" style="-fx-border-width: 2px; -fx-border-color: black; -fx-border-radius: 2px;" text="192.168.0.12">
+                                                <padding>
+                                                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                                </padding>
+                                             </CheckBox>
+                                             <CheckBox layoutX="404.0" layoutY="169.0" mnemonicParsing="false" style="-fx-border-width: 2px; -fx-border-color: black; -fx-border-radius: 2px;" text="192.168.0.12">
+                                                <padding>
+                                                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                                </padding>
+                                             </CheckBox>
+                                             <CheckBox layoutX="10.0" layoutY="219.0" mnemonicParsing="false" style="-fx-border-width: 2px; -fx-border-color: black; -fx-border-radius: 2px;" text="192.168.0.12">
+                                                <padding>
+                                                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                                </padding>
+                                             </CheckBox>
+                                             <CheckBox layoutX="141.0" layoutY="219.0" mnemonicParsing="false" style="-fx-border-width: 2px; -fx-border-color: black; -fx-border-radius: 2px;" text="192.168.0.12">
+                                                <padding>
+                                                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                                </padding>
+                                             </CheckBox>
+                                             <CheckBox layoutX="272.0" layoutY="219.0" mnemonicParsing="false" style="-fx-border-width: 2px; -fx-border-color: black; -fx-border-radius: 2px;" text="192.168.0.12">
+                                                <padding>
+                                                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                                </padding>
+                                             </CheckBox>
+                                             <CheckBox layoutX="404.0" layoutY="219.0" mnemonicParsing="false" style="-fx-border-width: 2px; -fx-border-color: black; -fx-border-radius: 2px;" text="192.168.0.12">
+                                                <padding>
+                                                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                                </padding>
+                                             </CheckBox>
+                                             <CheckBox layoutX="10.0" layoutY="268.0" mnemonicParsing="false" style="-fx-border-width: 2px; -fx-border-color: black; -fx-border-radius: 2px;" text="192.168.0.12">
+                                                <padding>
+                                                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                                </padding>
+                                             </CheckBox>
+                                             <CheckBox layoutX="141.0" layoutY="268.0" mnemonicParsing="false" style="-fx-border-width: 2px; -fx-border-color: black; -fx-border-radius: 2px;" text="192.168.0.12">
+                                                <padding>
+                                                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                                </padding>
+                                             </CheckBox>
+                                             <CheckBox layoutX="272.0" layoutY="268.0" mnemonicParsing="false" style="-fx-border-width: 2px; -fx-border-color: black; -fx-border-radius: 2px;" text="192.168.0.12">
+                                                <padding>
+                                                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                                </padding>
+                                             </CheckBox>
+                                             <CheckBox layoutX="404.0" layoutY="268.0" mnemonicParsing="false" style="-fx-border-width: 2px; -fx-border-color: black; -fx-border-radius: 2px;" text="192.168.0.12">
+                                                <padding>
+                                                   <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                                </padding>
+                                             </CheckBox>
+                                          </children>
+                                          <padding>
+                                             <Insets bottom="10.0" top="10.0" />
+                                          </padding>
+                                       </TilePane>
+                                    </children>
+                                 </AnchorPane>
+                             </content>
+                           </ScrollPane>
+                        </children>
+                        <padding>
+                           <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+                        </padding>
+                     </VBox>
+                     <VBox alignment="CENTER" fillWidth="false" layoutX="40.0" layoutY="675.2999877929688" prefWidth="550.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
+                        <children>
+                                            <Button alignment="CENTER" mnemonicParsing="false" onAction="#downloadFile" prefHeight="50.0" prefWidth="100.0" style="-fx-font-size: 18px; -fx-font-weight: bold;" text="Download">
+                              <padding>
+                                 <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                              </padding>
+                              <font>
+                                 <Font size="18.0" />
+                              </font>
+                           </Button>
+                        </children>
+                     </VBox>
+                                </children>
+                  <padding>
+                     <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+                  </padding>
+                            </AnchorPane>
+                        </children>
+                    </HBox>
+                </children>
+      <padding>
+         <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+      </padding>
+            </VBox>
+</AnchorPane>
