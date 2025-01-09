@@ -32,10 +32,18 @@ public class FilesTabController {
     @FXML
     SplitPane splitPane;
 
+    private File displayedFile;
+
     @FXML
     public void initialize() {
         uploadingOverlay.setVisible(false);
         splitPane.setDividerPosition(0, 1);
+        // Scale the image display
+        splitPane.getDividers().getFirst().positionProperty().addListener((observable, oldValue, newValue) -> {
+            if (displayedFile == null || !isImage(displayedFile)) return;
+            resizeImage(newValue.doubleValue());
+        });
+
         File folder = FileSharingApplication.requestFolder();
         if (folder != null) {
             updateSharedFilesDisplay();
@@ -44,10 +52,18 @@ public class FilesTabController {
     }
 
     public void showFileInfo(File file) {
-        System.out.println("Showing file info for " + file.getName());
+        displayedFile = file;
         splitPane.setDividerPosition(0, 0.5);
+
+        if (isImage(file)) {
+            displayImage(file);
+        } else {
+            fileIcon.setImage(new Image(Objects.requireNonNull(getClass().getResourceAsStream(FileItem.pickImage(file)))));
+            fileIcon.setFitWidth(50);
+            fileIcon.setFitHeight(50);
+        }
+
         filenameLabel.setText(file.getName());
-        fileIcon.setImage(new Image(Objects.requireNonNull(getClass().getResourceAsStream(FileItem.pickImage(file)))));
         var size = file.length();
         if (size > 1024 * 1024) {
             fileSizeLabel.setText(size / (1024 * 1024) + " MB");
@@ -80,6 +96,24 @@ public class FilesTabController {
             updateSharedFilesDisplay();
             folderName.setText(folder.getAbsolutePath());
         }
+    }
+
+    // Image related methods
+
+    private boolean isImage(File file) {
+        String fileName = file.getName().toLowerCase();
+        return fileName.endsWith(".jpg") || fileName.endsWith(".jpeg") || fileName.endsWith(".png") || fileName.endsWith(".gif");
+    }
+
+    private void displayImage(File image) {
+        Image img = new Image(image.toURI().toString());
+        fileIcon.setImage(img);
+        resizeImage(0.5);
+    }
+
+    private void resizeImage(double dividerPosition) {
+        fileIcon.setFitWidth((1 - dividerPosition) * splitPane.getWidth() - 20);
+        fileIcon.setFitHeight((1 - dividerPosition) * splitPane.getHeight() - 20);
     }
 
 }
