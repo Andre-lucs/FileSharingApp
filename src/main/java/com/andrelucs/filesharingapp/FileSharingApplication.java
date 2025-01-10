@@ -11,6 +11,7 @@ import javafx.stage.Stage;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class FileSharingApplication extends Application {
@@ -83,7 +84,7 @@ public class FileSharingApplication extends Application {
     }
 
     public static List<File> getSharedFiles() {
-        if (sharingClient == null) return List.of();
+        if (sharingClient == null) return new ArrayList<>();
         return sharingClient.getFileTracker().getSharedFiles();
     }
 
