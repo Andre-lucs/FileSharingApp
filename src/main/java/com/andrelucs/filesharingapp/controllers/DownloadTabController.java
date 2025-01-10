@@ -8,19 +8,21 @@ import com.andrelucs.filesharingapp.components.UserSharing;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.scene.control.Alert;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
-import javafx.scene.layout.AnchorPane;
+import javafx.fxml.Initializable;
+import javafx.geometry.Pos;
+import javafx.scene.Node;
+import javafx.scene.control.*;
 import javafx.scene.layout.TilePane;
 
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.ResourceBundle;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
-public class DownloadTabController {
-
+public class DownloadTabController implements Initializable {
+    private static final int MAX_FILES_PER_PAGE = 30;
     @FXML
     Label fileNameLabel;
     @FXML
@@ -28,36 +30,35 @@ public class DownloadTabController {
     @FXML
     TilePane usersSharing;
     @FXML
-    TilePane searchResults;
-    @FXML
     TextField searchInput;
     @FXML
-    AnchorPane fileDisplay;
+    private Pagination searchPagination;
 
     private Client client;
     private FileInfo selectedFile;
-    private List<String> shownFiles = new ArrayList<>();
-
-    @FXML
-    public void initialize(){
-        fileDisplay.setVisible(false);
-    }
+    private final List<String> shownFiles = new CopyOnWriteArrayList<>();
+    private final List<FileInfo> fileInfoList = new CopyOnWriteArrayList<>();
+    private final Object pageCountLock = new Object();
 
     public void updateClient() {
         System.out.println("initializing download tab");
         var newClient = FileSharingApplication.getClient();
         if (newClient != null && newClient != client) {
-            if(client != null) client.removeSearchResultListener(this::handleSearchResult);
+            if (client != null) client.removeSearchResultListener(this::handleSearchResult);
             newClient.addSearchResultListener(this::handleSearchResult);
         }
         client = newClient;
     }
 
     @FXML
-    public void downloadFile(ActionEvent event) {
+    public void downloadFile(ActionEvent ignoredEvent) {
         // get selected file owners to download from
-        var selectedFileOwners = usersSharing.getChildren().stream().filter(node -> node instanceof UserSharing).map(i -> (UserSharing) i)
-                .filter(CheckBox::isSelected).map(UserSharing::getUserIp).collect(Collectors.toSet());
+        var selectedFileOwners = usersSharing.getChildren().stream()
+                .filter(node -> node instanceof UserSharing)
+                .map(i -> (UserSharing) i)
+                .filter(CheckBox::isSelected)
+                .map(UserSharing::getUserIp)
+                .collect(Collectors.toSet());
         if (selectedFileOwners.isEmpty()) {
             Alert alert = new Alert(Alert.AlertType.ERROR);
             alert.setTitle("Error");
@@ -70,29 +71,25 @@ public class DownloadTabController {
     }
 
     @FXML
-    public void searchForFiles(ActionEvent event) {
-        //remove every child from searchResults
-        shownFiles = new ArrayList<>();
-        searchResults.getChildren().removeIf(node -> true);
+    public void searchForFiles(ActionEvent ignoredEvent) {
+        shownFiles.clear();
+        fileInfoList.clear();
         String searchQuery = searchInput.getText();
         client.sendSearchRequest(searchQuery);
     }
 
     private void handleSearchResult(FileInfo fileInfo) {
-        System.out.println("Will try to add file " + fileInfo);
         if (shownFiles.contains(fileInfo.name())) return; // Do not show the same file twice
-        FileItem fileItem = new FileItem(fileInfo.toFile());
-        fileItem.setMaxWidth(400);
-        fileItem.setOnMouseClicked(event -> showFileInfo(fileInfo));
         shownFiles.add(fileInfo.name());
+        fileInfoList.add(fileInfo);
         Platform.runLater(() -> {
-            searchResults.getChildren().add(fileItem);
-            System.out.println("Added file item: " + fileInfo.name());
+            synchronized (pageCountLock) {
+                searchPagination.setPageCount((int) Math.ceil(fileInfoList.size() / (double) MAX_FILES_PER_PAGE));
+            }
         });
     }
 
     private void showFileInfo(FileInfo fileInfo) {
-        fileDisplay.setVisible(true);
         selectedFile = fileInfo;
         fileNameLabel.setText(fileInfo.name());
         fileSizeLabel.setText(fileInfo.size() + " bytes");
@@ -105,4 +102,32 @@ public class DownloadTabController {
     }
 
 
+    @Override
+    public void initialize(URL location, ResourceBundle resources) {
+        searchPagination.setPageFactory(this::createPage);
+    }
+
+    private Node createPage(Integer pageIndex) {
+        List<FileInfo> filesInPage = new ArrayList<>(fileInfoList.subList(pageIndex * MAX_FILES_PER_PAGE, Math.min((pageIndex + 1) * MAX_FILES_PER_PAGE, fileInfoList.size())));
+        //Vertical scrolling if needed
+        ScrollPane scrollPane = new ScrollPane();
+        scrollPane.setFitToWidth(true);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+
+        TilePane tilePane = new TilePane();
+        tilePane.setAlignment(Pos.TOP_CENTER);
+        tilePane.setHgap(10);
+        tilePane.setVgap(10);
+
+        filesInPage.forEach(fileInfo -> {
+            var fileItem = new FileItem(fileInfo.name());
+            fileItem.setMaxWidth(300);
+            fileItem.setOnMouseClicked(event -> showFileInfo(fileInfo));
+            tilePane.getChildren().add(fileItem);
+        });
+
+        scrollPane.setContent(tilePane);
+        return scrollPane;
+    }
 }
