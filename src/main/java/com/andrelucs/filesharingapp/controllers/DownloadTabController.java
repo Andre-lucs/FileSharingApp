@@ -12,6 +12,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.TilePane;
 
 import java.util.ArrayList;
@@ -30,10 +31,17 @@ public class DownloadTabController {
     TilePane searchResults;
     @FXML
     TextField searchInput;
+    @FXML
+    AnchorPane fileDisplay;
 
     private Client client;
     private FileInfo selectedFile;
     private List<String> shownFiles = new ArrayList<>();
+
+    @FXML
+    public void initialize(){
+        fileDisplay.setVisible(false);
+    }
 
     public void updateClient() {
         System.out.println("initializing download tab");
@@ -84,6 +92,7 @@ public class DownloadTabController {
     }
 
     private void showFileInfo(FileInfo fileInfo) {
+        fileDisplay.setVisible(true);
         selectedFile = fileInfo;
         fileNameLabel.setText(fileInfo.name());
         fileSizeLabel.setText(fileInfo.size() + " bytes");

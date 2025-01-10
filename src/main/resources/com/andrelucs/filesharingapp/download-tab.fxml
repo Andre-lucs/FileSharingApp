@@ -46,7 +46,7 @@
                                       </AnchorPane>
                                   </content>
                               </ScrollPane>
-                            <AnchorPane layoutX="477.0" layoutY="10.0" HBox.hgrow="NEVER">
+                            <AnchorPane fx:id="fileDisplay"  layoutX="477.0" layoutY="10.0" HBox.hgrow="NEVER">
                                 <HBox.margin>
                                     <Insets />
                                 </HBox.margin>
