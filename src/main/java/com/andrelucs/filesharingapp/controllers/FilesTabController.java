@@ -17,8 +17,10 @@ import java.io.File;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.prefs.Preferences;
 
 public class FilesTabController {
+    private static final String LAST_FOLDER_KEY = "lastFolder";
     @FXML
     Label folderName;
     @FXML
@@ -49,11 +51,21 @@ public class FilesTabController {
             resizeImage(newValue.doubleValue());
         });
 
-        File folder = FileSharingApplication.requestFolder();
-        if (folder != null) {
-            updateSharedFilesDisplay();
-            folderName.setText(folder.getAbsolutePath());
+        Preferences prefs = Preferences.userRoot().node(getClass().getName());
+        String folderName = prefs.get(LAST_FOLDER_KEY, null);
+        if(folderName == null) {
+            File folder = FileSharingApplication.requestFolder();
+            if (folder != null) {
+                prefs.put(LAST_FOLDER_KEY, folder.getAbsolutePath());
+                folderName = folder.getAbsolutePath();
+            }
         }
+        if(folderName != null) {
+            FileSharingApplication.setSharedFolder(new File(folderName));
+            updateSharedFilesDisplay();
+            this.folderName.setText(folderName);
+        }
+
     }
 
     public void showFileInfo(File file) {
@@ -94,7 +106,7 @@ public class FilesTabController {
             updateSharedFilesDisplay(Comparator.comparing(File::getName));
     }
 
-    public void updateSharedFilesDisplay(Comparator<File> comparator) { // TODO Otimizar
+    private void updateSharedFilesDisplay(Comparator<File> comparator) { // TODO Otimizar
         List<File> sharedFiles = FileSharingApplication.getSharedFiles();
         List<Node> children = filesDisplayContainer.getChildren();
 
@@ -113,6 +125,8 @@ public class FilesTabController {
     public void changeSharedFolder(ActionEvent ignoredEvent) {
         File folder = FileSharingApplication.changeSharedFolder();
         if (folder != null) {
+            Preferences prefs = Preferences.userRoot().node(getClass().getName());
+            prefs.put(LAST_FOLDER_KEY, folder.getAbsolutePath());
             updateSharedFilesDisplay();
             folderName.setText(folder.getAbsolutePath());
         }

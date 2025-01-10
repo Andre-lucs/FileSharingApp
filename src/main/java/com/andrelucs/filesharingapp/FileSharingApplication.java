@@ -71,6 +71,10 @@ public class FileSharingApplication extends Application {
         return sharedFolder;
     }
 
+    public static void setSharedFolder(File sharedFolder) {
+        createClient(sharedFolder);
+    }
+
     private static void createClient(File sharedFolder) {
         try {
             if (sharingClient != null) {
