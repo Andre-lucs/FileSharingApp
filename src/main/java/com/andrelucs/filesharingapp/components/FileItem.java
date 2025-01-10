@@ -2,17 +2,19 @@ package com.andrelucs.filesharingapp.components;
 
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
-import javafx.scene.text.TextFlow;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
+import java.util.ResourceBundle;
 import java.util.logging.Logger;
 
-public class FileItem extends HBox {
+public class FileItem extends HBox implements Initializable {
     private static final Logger logger = Logger.getLogger(FileItem.class.getName());
     @FXML
     private Label fileNameLabel;
@@ -20,6 +22,9 @@ public class FileItem extends HBox {
     private ImageView imageView;
     private final File file;
 
+    public FileItem(String fileName) {
+        this(new File(fileName));
+    }
 
     public FileItem(File file) {
         this.file = file;
@@ -32,13 +37,6 @@ public class FileItem extends HBox {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-    }
-
-
-    @FXML
-    public void initialize() {
-        fileNameLabel.setText(file.getName());
-        setIcon(pickImage(file));
     }
 
     public static String pickImage(File file) {
@@ -78,18 +76,7 @@ public class FileItem extends HBox {
 ////        }
 //    }
 
-    public void setIcon(String imagePath) {
-        // If the file exists and is an image load it as the icon
-//        if(file.exists() && file.getName().endsWith(".png")){
-//            try (var icon = getClass().getResourceAsStream(file.getAbsolutePath())) {
-//                assert icon != null : "Image not found: "+file.getAbsolutePath();
-//                this.imageView.setImage(new Image(icon));
-//            } catch (IOException e) {
-//                throw new RuntimeException(e);
-//            }
-//            return;
-//        }
-
+    private void setIcon(String imagePath) {
         try (var icon = getClass().getResourceAsStream(imagePath)) {
             assert icon != null : "Image not found: " + imagePath;
             this.imageView.setImage(new Image(icon));
@@ -98,4 +85,9 @@ public class FileItem extends HBox {
         }
     }
 
+    @Override
+    public void initialize(URL location, ResourceBundle resources) {
+        fileNameLabel.setText(file.getName());
+        setIcon(pickImage(file));
+    }
 }
