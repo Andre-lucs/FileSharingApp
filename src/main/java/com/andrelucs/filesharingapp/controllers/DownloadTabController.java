@@ -67,7 +67,15 @@ public class DownloadTabController implements Initializable {
             alert.showAndWait();
             return;
         }
-        client.downloadFileFromOwners(selectedFile.name(), selectedFileOwners, selectedFile.size());
+        try{
+            client.downloadFileFromOwners(selectedFile.name(), selectedFileOwners, selectedFile.size());
+        }catch (IllegalStateException e){
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Error");
+            alert.setHeaderText("Download error");
+            alert.setContentText(e.getMessage());
+            alert.showAndWait();
+        }
     }
 
     @FXML
@@ -108,7 +116,8 @@ public class DownloadTabController implements Initializable {
     }
 
     private Node createPage(Integer pageIndex) {
-        List<FileInfo> filesInPage = new ArrayList<>(fileInfoList.subList(pageIndex * MAX_FILES_PER_PAGE, Math.min((pageIndex + 1) * MAX_FILES_PER_PAGE, fileInfoList.size())));
+        List<FileInfo> copy = new ArrayList<>(fileInfoList);
+        List<FileInfo> filesInPage = new ArrayList<>(copy.subList(pageIndex * MAX_FILES_PER_PAGE, Math.min((pageIndex + 1) * MAX_FILES_PER_PAGE, copy.size())));
         //Vertical scrolling if needed
         ScrollPane scrollPane = new ScrollPane();
         scrollPane.setFitToWidth(true);

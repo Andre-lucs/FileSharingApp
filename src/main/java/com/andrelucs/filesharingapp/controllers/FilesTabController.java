@@ -2,9 +2,9 @@ package com.andrelucs.filesharingapp.controllers;
 
 import com.andrelucs.filesharingapp.FileSharingApplication;
 import com.andrelucs.filesharingapp.components.FileItem;
+import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.scene.Node;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.SplitPane;
@@ -64,6 +64,9 @@ public class FilesTabController {
             FileSharingApplication.setSharedFolder(new File(folderName));
             updateSharedFilesDisplay();
             this.folderName.setText(folderName);
+        }else{
+            FileSharingApplication.createClientWithNoFolder();
+            this.folderName.setText("No shared folder");
         }
 
     }
@@ -106,19 +109,26 @@ public class FilesTabController {
             updateSharedFilesDisplay(Comparator.comparing(File::getName));
     }
 
-    private void updateSharedFilesDisplay(Comparator<File> comparator) { // TODO Otimizar
-        List<File> sharedFiles = FileSharingApplication.getSharedFiles();
-        List<Node> children = filesDisplayContainer.getChildren();
+    private void updateSharedFilesDisplay(Comparator<File> comparator) {
+        Task<List<FileItem>> task = new Task<>() {
+            @Override
+            protected List<FileItem> call() {
+                List<File> sharedFiles = FileSharingApplication.getSharedFiles();
+                sharedFiles.sort(comparator);
+                return sharedFiles.stream().map(file -> {
+                    FileItem fileItem = new FileItem(file.getAbsoluteFile());
+                    fileItem.setMaxWidth(200);
+                    fileItem.setOnMouseClicked(event -> showFileInfo(file));
+                    return fileItem;
+                }).toList();
+            }
 
-        sharedFiles.sort(comparator);
-
-        children.clear();
-        sharedFiles.forEach(file -> {
-            FileItem fileItem = new FileItem(file.getAbsoluteFile());
-            fileItem.setMaxWidth(200);
-            fileItem.setOnMouseClicked(event -> showFileInfo(file));
-            children.add(fileItem);
-        });
+            @Override
+            protected void succeeded() {
+                filesDisplayContainer.getChildren().setAll(getValue());
+            }
+        };
+        new Thread(task).start();
     }
 
     @FXML
@@ -130,6 +140,15 @@ public class FilesTabController {
             updateSharedFilesDisplay();
             folderName.setText(folder.getAbsolutePath());
         }
+    }
+
+    @FXML
+    public void stopSharing(ActionEvent ignoredActionEvent) {
+        FileSharingApplication.stopSharingFolders();
+        Preferences prefs = Preferences.userRoot().node(getClass().getName());
+        prefs.remove(LAST_FOLDER_KEY);
+        updateSharedFilesDisplay();
+        folderName.setText("No shared folder");
     }
 
     // Image related methods

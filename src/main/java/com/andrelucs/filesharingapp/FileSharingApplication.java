@@ -30,6 +30,7 @@ public class FileSharingApplication extends Application {
         return sharingClient;
     }
 
+
     @Override
     public void start(Stage primaryStage) throws Exception {
         mainStage = primaryStage;
@@ -75,12 +76,32 @@ public class FileSharingApplication extends Application {
         createClient(sharedFolder);
     }
 
-    private static void createClient(File sharedFolder) {
+    private static void createClient(File sharedFolder) { // TODO Run this in the background and create a way to await it
         try {
             if (sharingClient != null) {
                 sharingClient.close();
             }
-            sharingClient = new Client("localhost", sharedFolder.toPath());
+            sharingClient = new Client("localhost", sharedFolder);
+            sharingClient.start();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static void stopSharingFolders() {
+        if (sharingClient != null) {
+            try {
+                sharingClient.close();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        createClientWithNoFolder();
+    }
+
+    public static void createClientWithNoFolder() {
+        try {
+            sharingClient = new Client("localhost");
             sharingClient.start();
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -89,7 +110,7 @@ public class FileSharingApplication extends Application {
 
     public static List<File> getSharedFiles() {
         if (sharingClient == null) return new ArrayList<>();
-        return sharingClient.getFileTracker().getSharedFiles();
+        return sharingClient.getSharedFiles();
     }
 
     public static void deleteFile(File file) {
