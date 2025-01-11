@@ -13,7 +13,8 @@ import java.util.stream.Collectors;
 public class FileTracker {
 
     private final Map<String, File> files = new HashMap<>();
-    protected final Map<String, Boolean> sharedFiles = new HashMap<>();
+    protected final List<String> sharedFiles = new ArrayList<>();
+//    protected final Map<String, Boolean> sharedFiles = new HashMap<>();
     private final Client client;
 
     private final Object deletingFilesLock = new Object();
@@ -59,11 +60,14 @@ public class FileTracker {
 
     public void deleteAllFiles() {
         Iterator<String> iterator = files.keySet().iterator();
+        int deletedFilesCount = 0;
         while (iterator.hasNext()) {
             String fileName = iterator.next();
             iterator.remove();
             client.sendDeleteFileRequest(fileName);
+            deletedFilesCount++;
         }
+        System.out.println("sent " + deletedFilesCount + " deletion requests");
         waitAllFilesDeletion();
         System.out.println("Received confirmation of all shared files");
     }
@@ -79,7 +83,7 @@ public class FileTracker {
     }
 
     public void confirmFileSharing(String fileName) {
-        sharedFiles.put(fileName, true);
+        sharedFiles.add(fileName);
     }
 
     public void confirmUnsharedFile(String fileName) {
@@ -104,6 +108,10 @@ public class FileTracker {
 
     public File getFile(String fileName) {
         return files.get(fileName);
+    }
+
+    public Boolean getSharedFile(String fileName) {
+        return sharedFiles.contains(fileName);
     }
 
     public List<File> getSharedFiles() {

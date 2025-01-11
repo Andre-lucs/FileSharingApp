@@ -5,7 +5,6 @@ import com.andrelucs.filesharingapp.communication.ProtocolCommand;
 import com.andrelucs.filesharingapp.communication.client.file.FileAlreadyExistsException;
 import com.andrelucs.filesharingapp.communication.client.file.FileTracker;
 import com.andrelucs.filesharingapp.communication.client.file.FileTransferring;
-import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
 import java.net.Socket;
@@ -15,11 +14,13 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 import static com.andrelucs.filesharingapp.communication.ProtocolCommand.*;
 
 public class Client implements Closeable, SearchEventListener {
+    private static final int SERVER_CONNECTION_PORT = 1234;
 
     protected Socket socket;
     protected PrintWriter writer;
@@ -27,62 +28,71 @@ public class Client implements Closeable, SearchEventListener {
     protected boolean isConnected = false;
     private final Object connectionLock = new Object();
 
-    protected final FileTracker fileTracker;
-    protected final FileTransferring fileTransferring;
     protected final ServerResponseHandler serverResponseHandler;
     private final List<FileInfo> searchFiles = new ArrayList<>();
-    //    private final Map<String, Set<FileInfo>> searchOwnerFiles = new HashMap<>(); // The files of each owner
     private final Map<String, Set<String>> searchFileOwners = new HashMap<>(); // The owners of each file
 
-    private final Path sharedFolder;
-
     private final Thread responseReadingThread;
-    private final Thread fileTransferringThread;
 
     private final Map<ProtocolCommand, Function<String, Void>> externalRequestHandlers = new HashMap<>(); // TODO: Implement
 
-    // TODO Implement client without shared folder
-    public Client(String host, Path sharedFolder) throws IOException {
-        this(host, 1234, sharedFolder);
+    private final List<Path> sharedFolders = new ArrayList<>();
+    private final List<FileTracker> folderTrackers = new ArrayList<>();
+    protected FileTransferring fileTransferring = null;
+    private Thread fileTransferringThread = null;
+
+    public Client(String serverIp) throws IOException {
+        this(serverIp, List.of());
     }
 
-    public Client(String host, int port, Path sharedFolder) throws IOException {
-        this.socket = new Socket(host, port);
+    public Client(String serverIp, File sharedFolder) throws IOException {
+        this(serverIp, List.of(sharedFolder));
+    }
+
+    // Common constructor
+    public Client(String serverIp, List<File> initialFolders) throws IOException {
+        this.socket = new Socket(serverIp, SERVER_CONNECTION_PORT);
         this.writer = new PrintWriter(socket.getOutputStream(), true);
         this.reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        this.sharedFolder = sharedFolder;
-        this.fileTracker = new FileTracker(this, sharedFolder);
-        this.fileTransferring = new FileTransferring(fileTracker, sharedFolder);
-        this.fileTransferringThread = new Thread(fileTransferring);
-        this.serverResponseHandler = new ServerResponseHandler(this, fileTracker);
+
+        this.serverResponseHandler = new ServerResponseHandler(this);
         this.serverResponseHandler.addSearchResultListener(this);
         this.responseReadingThread = new Thread(this::readResponses);
+
+        for (File folder : initialFolders) {
+            shareFolder(folder);
+        }
     }
 
     public void start() {
         responseReadingThread.start();
         sendJoinRequest();
         waitConnection();
-        fileTracker.sendPendingFiles();
+        for (var tracker : folderTrackers) {
+            tracker.sendPendingFiles();
+        }
 
-        fileTransferringThread.start();
+        if(fileTransferringThread != null) fileTransferringThread.start();
     }
 
     @Override
     public void close() throws IOException {
-        fileTracker.deleteAllFiles();
+        // run all deleteAllFiles asynchronously
+        CompletableFuture completableFutures = CompletableFuture.allOf(folderTrackers.stream()
+                .map(tracker -> CompletableFuture.runAsync(tracker::deleteAllFiles))
+                .toArray(CompletableFuture[]::new));
+//        for (FileTracker tracker : folderTrackers) {
+//            tracker.deleteAllFiles();
+//        }
+        completableFutures.join();
         writer.println(LEAVE.format());
         waitDisconnection();
-        fileTransferring.close();
+        if(fileTransferring != null) fileTransferring.close();
         writer.close();
         reader.close();
         socket.close();
-        try {
-            fileTransferringThread.join(1000);
-            responseReadingThread.join(1000);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+        if(fileTransferringThread != null) fileTransferringThread.interrupt();
+        responseReadingThread.interrupt();
     }
 
     // Requests
@@ -116,6 +126,10 @@ public class Client implements Closeable, SearchEventListener {
 
     // Download methods
     public void downloadFile(FileInfo fileInfo) {
+        if(fileTransferring == null) {
+            throw new IllegalStateException("FileTransferring not initialized. You must have a shared folder to download files.");
+        }
+
         new Thread(() -> {
             try {
                 var file = fileTransferring.downloadFromSingleOwner(fileInfo, null);
@@ -126,11 +140,17 @@ public class Client implements Closeable, SearchEventListener {
         }).start();
     }
 
-//    public void downloadFileFromEveryOwner(String fileName) {
-//        downloadFileFromOwners(fileName, searchFileOwners.get(fileName));
-//    }
-
+    /**
+     * Download a file from multiple owners
+     * @param fileName The name of the file
+     * @param owners The owners to download from
+     * @param fileSize The size of the file
+     * @throws IllegalStateException If the FileTransferring is not initialized
+     */
     public void downloadFileFromOwners(String fileName, Set<String> owners, Long fileSize) {
+        if(fileTransferring == null) {
+            throw new IllegalStateException("You must have a shared folder to download files.");
+        }
         System.out.println("Downloading file " + fileName + " from owners: " + owners);
         if (owners.size() == 1) {
             downloadFile(new FileInfo(fileName, owners.iterator().next(), fileSize)); // Size is not important here
@@ -140,7 +160,8 @@ public class Client implements Closeable, SearchEventListener {
                 .filter(file -> file.name().equals(fileName))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("File not found"));
-        fileTransferring.downloadFromMultipleOwners(fileInfo, owners);
+        File downloadedFile = fileTransferring.downloadFromMultipleOwners(fileInfo, owners);
+        shareFile(downloadedFile);
     }
 
     //-----
@@ -178,7 +199,7 @@ public class Client implements Closeable, SearchEventListener {
     }
 
     private void shareFile(File file) {
-        fileTracker.shareFile(file);
+        getFileTracker().shareFile(file);
     }
 
     private void readResponses() {
@@ -205,6 +226,24 @@ public class Client implements Closeable, SearchEventListener {
 
     // Public Api Methods
 
+    public void shareFolder(File folder) throws IOException {
+        if(folder == null || !folder.exists() || !folder.isDirectory()){
+            throw new IllegalArgumentException("Invalid folder");
+        }
+
+        sharedFolders.add(folder.toPath());
+        FileTracker newTracker = new FileTracker(this, folder.toPath());
+        folderTrackers.add(newTracker);
+
+        if(this.fileTransferring == null && this.fileTransferringThread == null){
+            this.fileTransferring = new FileTransferring(this, folder.toPath());
+            this.fileTransferringThread = new Thread(fileTransferring);
+            if(isConnected) fileTransferringThread.start();
+        }
+        // if is connected then the user already started the client, so we can send the files
+        if(isConnected) newTracker.sendPendingFiles();
+    }
+
     public List<FileInfo> getSearchFiles() {
         return searchFiles;
     }
@@ -215,11 +254,12 @@ public class Client implements Closeable, SearchEventListener {
 
 
     public FileTracker getFileTracker() {
-        return fileTracker;
+        return folderTrackers.getFirst();
     }
 
     public List<File> getSharedFiles() {
-        return fileTracker.getSharedFiles();
+        if(folderTrackers.isEmpty()) return new ArrayList<>();
+        return getFileTracker().getSharedFiles();
     }
 
     public void addSearchResultListener(SearchEventListener listener) {
@@ -230,11 +270,42 @@ public class Client implements Closeable, SearchEventListener {
     }
 
     public void deleteFile(File file) {
-        fileTracker.deleteFile(file);
+        getFileTracker().deleteFile(file);
     }
 
 
     public boolean isBeingUploaded(File file) {
-        return fileTransferring.isBeingUploaded(file);
+        return fileTransferring != null && fileTransferring.isBeingUploaded(file);
+    }
+
+    public void confirmFileSharing(String fileName) {
+        fileName = decodeFileName(fileName);
+        for (FileTracker folderTracker : folderTrackers) {
+            if(folderTracker.getFile(fileName) != null){
+                folderTracker.confirmFileSharing(fileName);
+                return;
+            }
+        }
+        System.out.println("File not found: " + fileName);
+    }
+
+    public void confirmUnsharedFile(String fileName) {
+        fileName = decodeFileName(fileName);
+        for (FileTracker folderTracker : folderTrackers) {
+            if(folderTracker.getSharedFile(fileName) != null){
+                folderTracker.confirmUnsharedFile(fileName);
+                return;
+            }
+        }
+    }
+
+    public File getFile(String fileName) {
+        for (FileTracker folderTracker : folderTrackers) {
+            File file;
+            if((file = folderTracker.getFile(fileName)) != null){
+                return file;
+            }
+        }
+        return null;
     }
 }

@@ -2,7 +2,6 @@ package com.andrelucs.filesharingapp.communication.client;
 
 import com.andrelucs.filesharingapp.communication.FileInfo;
 import com.andrelucs.filesharingapp.communication.ProtocolCommand;
-import com.andrelucs.filesharingapp.communication.client.file.FileTracker;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,12 +9,10 @@ import java.util.List;
 public class ServerResponseHandler {
 
     private final Client client;
-    private final FileTracker fileTracker;
     private final List<SearchEventListener> searchResultListeners;
 
-    public ServerResponseHandler(Client client, FileTracker fileTracker) {
+    public ServerResponseHandler(Client client) {
         this.client = client;
-        this.fileTracker = fileTracker;
         this.searchResultListeners = new ArrayList<>();
     }
 
@@ -25,8 +22,8 @@ public class ServerResponseHandler {
         switch (responseType) {
             case CONFIRMJOIN -> client.setConnected(true);
             case CONFIRMLEAVE -> client.setConnected(false);
-            case CONFIRMCREATEFILE -> fileTracker.confirmFileSharing(response.split(" ")[1]);
-            case CONFIRMDELETEFILE -> fileTracker.confirmUnsharedFile(response.split(" ")[1]);
+            case CONFIRMCREATEFILE -> client.confirmFileSharing(response.split(" ")[1]);
+            case CONFIRMDELETEFILE -> client.confirmUnsharedFile(response.split(" ")[1]);
             case FILE -> fileRequestHandler(parts);
             default -> System.out.println("Unknown response: " + response);
         }

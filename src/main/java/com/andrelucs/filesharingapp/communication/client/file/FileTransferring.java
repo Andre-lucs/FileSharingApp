@@ -2,6 +2,7 @@ package com.andrelucs.filesharingapp.communication.client.file;
 
 import com.andrelucs.filesharingapp.communication.FileInfo;
 import com.andrelucs.filesharingapp.communication.ProtocolCommand;
+import com.andrelucs.filesharingapp.communication.client.Client;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.*; //TODO usar java.nio em vez do java.io padrao
@@ -20,18 +21,18 @@ public class FileTransferring implements Runnable, Closeable {
     private static final int BUFFER_SIZE = 1024 * 8;
     private static final Logger logger = Logger.getLogger(FileTransferring.class.getName());
     private final ServerSocket serverSocket;
-    private final FileTracker fileTracker;
-    private final Path sharedFolder;
+    private final Client client;
+    private final Path downloadFolder;
     private final ExecutorService downloadExecutorService;
 
     private final List<String> filesBeingUploaded = new ArrayList<>();
     private final List<String> filesBeingDownloaded = new ArrayList<>();
     private final Map<String, Float> downloadProgress = new HashMap<>();
 
-    public FileTransferring(FileTracker fileTracker, Path sharedFolder) throws IOException {
+    public FileTransferring(Client client, Path downloadFolder) throws IOException {
         this.serverSocket = new ServerSocket(FILE_TRANSFER_PORT);
-        this.fileTracker = fileTracker;
-        this.sharedFolder = sharedFolder;
+        this.client = client;
+        this.downloadFolder = downloadFolder;
         this.downloadExecutorService = Executors.newFixedThreadPool(10);
     }
 
@@ -63,7 +64,7 @@ public class FileTransferring implements Runnable, Closeable {
             }
             String[] parts = getRequest.split(" ");
 
-            File requestedFile = fileTracker.getFile(parts[1]);
+            File requestedFile = client.getFile(parts[1]);
             if (requestedFile == null) {
                 dataOutputStream.writeUTF("File not found");
                 return;
@@ -119,10 +120,10 @@ public class FileTransferring implements Runnable, Closeable {
 
                 return null;
             });
-            if (Files.exists(sharedFolder.resolve(fileInfo.name()))) {
-                return Files.copy(tempFile.toPath(), sharedFolder.resolve(UUID.randomUUID().toString().substring(0, 5) + fileInfo.name())).toFile();
+            if (Files.exists(downloadFolder.resolve(fileInfo.name()))) {
+                return Files.copy(tempFile.toPath(), downloadFolder.resolve(UUID.randomUUID().toString().substring(0, 5) + fileInfo.name())).toFile();
             } else {
-                return Files.copy(tempFile.toPath(), sharedFolder.resolve(fileInfo.name())).toFile();
+                return Files.copy(tempFile.toPath(), downloadFolder.resolve(fileInfo.name())).toFile();
             }
         } catch (IOException e) {
             logger.log(Level.SEVERE, "Error downloading file from single owner", e);
@@ -142,7 +143,7 @@ public class FileTransferring implements Runnable, Closeable {
      */
     public File downloadFromMultipleOwners(@NotNull FileInfo fileInfo, @NotNull Set<String> owners/*, Function<Float,Void> progressTracker*/) {
         var uniqueFileName = fileInfo.name() + UUID.randomUUID().toString().substring(0, 5); // TODO later change this to just the filename
-        var newFile = sharedFolder.resolve(uniqueFileName).toFile();
+        var newFile = downloadFolder.resolve(uniqueFileName).toFile();
         List<Future<File>> futureTempFiles = new ArrayList<>();
         for (String owner : owners) {
             futureTempFiles.add(asyncDownloadFileBytes(fileInfo.name(), owner, 0, fileInfo.size(), totalBytes -> {
@@ -190,10 +191,10 @@ public class FileTransferring implements Runnable, Closeable {
      */
     private @NotNull File downloadFileBytes(String fileName, String owner, long startByte, long endByte, Function<Long, Void> progressTracker) throws IOException {
         // Creates temp folder if not exists
-        if (!Files.exists(sharedFolder.resolve("temp"))) {
-            Files.createDirectory(sharedFolder.resolve("temp"));
+        if (!Files.exists(downloadFolder.resolve("temp"))) {
+            Files.createDirectory(downloadFolder.resolve("temp"));
         }
-        File tempFile = File.createTempFile(fileName, startByte + "-" + endByte, sharedFolder.resolve("temp").toFile());
+        File tempFile = File.createTempFile(fileName, startByte + "-" + endByte, downloadFolder.resolve("temp").toFile());
         tempFile.deleteOnExit();
 
         try (
