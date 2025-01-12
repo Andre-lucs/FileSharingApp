@@ -7,10 +7,7 @@ import com.andrelucs.filesharingapp.communication.client.file.FileTracker;
 import com.andrelucs.filesharingapp.communication.client.file.FileTransferring;
 
 import java.io.*;
-import java.net.Socket;
-import java.net.SocketException;
-import java.net.URLDecoder;
-import java.net.URLEncoder;
+import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
@@ -64,6 +61,15 @@ public class Client implements Closeable, SearchEventListener {
         }
     }
 
+    public static boolean checkServerIp(String ip) {
+        try (Socket socket = new Socket()) {
+            socket.connect(new InetSocketAddress(ip, SERVER_CONNECTION_PORT), 2000);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public void start() {
         responseReadingThread.start();
         sendJoinRequest();
@@ -78,12 +84,9 @@ public class Client implements Closeable, SearchEventListener {
     @Override
     public void close() throws IOException {
         // run all deleteAllFiles asynchronously
-        CompletableFuture completableFutures = CompletableFuture.allOf(folderTrackers.stream()
+        CompletableFuture<Void> completableFutures = CompletableFuture.allOf(folderTrackers.stream()
                 .map(tracker -> CompletableFuture.runAsync(tracker::deleteAllFiles))
                 .toArray(CompletableFuture[]::new));
-//        for (FileTracker tracker : folderTrackers) {
-//            tracker.deleteAllFiles();
-//        }
         completableFutures.join();
         writer.println(LEAVE.format());
         waitDisconnection();
@@ -246,6 +249,10 @@ public class Client implements Closeable, SearchEventListener {
 
     public List<FileInfo> getSearchFiles() {
         return searchFiles;
+    }
+
+    public List<Path> getSharedFolders() {
+        return sharedFolders;
     }
 
     public Set<String> getFileOwners(String fileName) {

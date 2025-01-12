@@ -3,8 +3,10 @@ package com.andrelucs.filesharingapp;
 import atlantafx.base.theme.NordDark;
 import com.andrelucs.filesharingapp.communication.client.Client;
 import com.andrelucs.filesharingapp.components.FolderSelectionAlert;
+import com.andrelucs.filesharingapp.components.ServerConnectionAlert;
 import com.andrelucs.filesharingapp.controllers.MainViewController;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
@@ -19,6 +21,7 @@ public class FileSharingApplication extends Application {
     public static Stage mainStage;
     public static Client sharingClient;
     public static MainViewController mainViewController;
+    private static String serverIpAddress = null;
 
     public static boolean isBeingUploaded(File file) {
         if (sharingClient == null) return false;
@@ -37,7 +40,14 @@ public class FileSharingApplication extends Application {
 //        Application.setUserAgentStylesheet(new PrimerDark().getUserAgentStylesheet());
 //        Application.setUserAgentStylesheet(new PrimerLight().getUserAgentStylesheet());
         Application.setUserAgentStylesheet(new NordDark().getUserAgentStylesheet());
-
+        if (serverIpAddress ==null){
+            ServerConnectionAlert serverConnectionAlert = new ServerConnectionAlert();
+            serverIpAddress = serverConnectionAlert.requestServerIp();
+            if (serverIpAddress == null) {
+                Platform.exit();
+                return;
+            }
+        };
         FXMLLoader fxmlLoader = new FXMLLoader(FileSharingApplication.class.getResource("main-view.fxml"));
         Scene mainScene = new Scene(fxmlLoader.load(), 800, 600);
         mainViewController = fxmlLoader.getController();
@@ -81,7 +91,7 @@ public class FileSharingApplication extends Application {
             if (sharingClient != null) {
                 sharingClient.close();
             }
-            sharingClient = new Client("localhost", sharedFolder);
+            sharingClient = new Client(serverIpAddress, sharedFolder);
             sharingClient.start();
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -101,7 +111,7 @@ public class FileSharingApplication extends Application {
 
     public static void createClientWithNoFolder() {
         try {
-            sharingClient = new Client("localhost");
+            sharingClient = new Client(serverIpAddress);
             sharingClient.start();
         } catch (IOException e) {
             throw new RuntimeException(e);
