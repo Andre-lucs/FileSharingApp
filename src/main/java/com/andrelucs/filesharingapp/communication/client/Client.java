@@ -70,6 +70,31 @@ public class Client implements Closeable, SearchEventListener {
         }
     }
 
+    /**
+     * Get the network address of the machine
+     * @return The network address or <code>null</code> if it could not be found
+     */
+    public static String getNetworkAdress(){
+        try {
+            Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
+            while (networkInterfaces.hasMoreElements()) {
+                NetworkInterface networkInterface = networkInterfaces.nextElement();
+                if (networkInterface.isUp() && !networkInterface.isLoopback()) {
+                    Enumeration<InetAddress> inetAddresses = networkInterface.getInetAddresses();
+                    while (inetAddresses.hasMoreElements()) {
+                        InetAddress inetAddress = inetAddresses.nextElement();
+                        if (inetAddress instanceof java.net.Inet4Address) {
+                            return inetAddress.getHostAddress();
+                        }
+                    }
+                }
+            }
+        } catch (SocketException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
     public void start() {
         responseReadingThread.start();
         sendJoinRequest();

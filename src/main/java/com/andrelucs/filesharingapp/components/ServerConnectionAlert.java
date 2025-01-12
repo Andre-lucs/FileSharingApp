@@ -73,6 +73,8 @@ public class ServerConnectionAlert implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        String address = Client.getNetworkAdress();
+        if(address != null) serverIpField.setText(address);
         window.sizeToScene();
         window.centerOnScreen();
         checkingIndicator.setVisible(false);
