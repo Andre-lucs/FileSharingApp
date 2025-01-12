@@ -104,7 +104,7 @@ public class DownloadTabController implements Initializable {
         //displayFileOwners
         usersSharing.getChildren().removeIf(node -> true);
         client.getFileOwners(fileInfo.name()).forEach(owner -> {
-            UserSharing userSharingCheckBox = new UserSharing(fileInfo.owner());
+            UserSharing userSharingCheckBox = new UserSharing(owner);
             usersSharing.getChildren().add(userSharingCheckBox);
         });
     }

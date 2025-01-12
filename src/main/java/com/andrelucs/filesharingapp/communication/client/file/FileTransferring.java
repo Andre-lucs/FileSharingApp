@@ -28,6 +28,7 @@ public class FileTransferring implements Runnable, Closeable {
     private final List<String> filesBeingUploaded = new ArrayList<>();
     private final List<String> filesBeingDownloaded = new ArrayList<>();
     private final Map<String, Float> downloadProgress = new HashMap<>();
+    private final Object tempFolderLock = new Object();
 
     public FileTransferring(Client client, Path downloadFolder) throws IOException {
         this.serverSocket = new ServerSocket(FILE_TRANSFER_PORT);
@@ -78,7 +79,6 @@ public class FileTransferring implements Runnable, Closeable {
             long startByte = Integer.parseInt(range[0]);
             long endByte = (range.length > 1) ? Integer.parseInt(range[1]) : requestedFile.length();
             long contentLength = endByte - startByte;
-            logger.info("Serving file: " + requestedFile.getName() + " from byte " + startByte + " to " + endByte);
 
             filesBeingUploaded.add(requestedFile.getName());
 
@@ -91,10 +91,10 @@ public class FileTransferring implements Runnable, Closeable {
 
                 // While not reached end of file or not reached the requested byte range
                 while ((bytes = fileInputStream.read(buffer)) != -1) {
+                    bytes = (int) Math.min(bytes, contentLength - totalBytes);
                     totalBytes += bytes;
                     dataOutputStream.write(buffer, 0, bytes);
                     dataOutputStream.flush();
-                    logger.info("Sent " + bytes + " bytes, total sent: " + totalBytes + " bytes");
 
                     if (totalBytes >= contentLength) {
                         break;
@@ -109,31 +109,6 @@ public class FileTransferring implements Runnable, Closeable {
         }
     }
 
-    public File downloadFromSingleOwner(@NotNull FileInfo fileInfo, Function<Float, Void> downloadProgressTracker) throws FileAlreadyExistsException {
-        filesBeingDownloaded.add(fileInfo.name());
-        downloadProgress.put(fileInfo.name(), 0f);
-        if(downloadProgressTracker != null) downloadProgressTracker.apply(0f);
-        try {
-            File tempFile = downloadFileBytes(fileInfo.name(), fileInfo.owner(), 0, fileInfo.size(), totalBytes -> {
-                downloadProgress.put(fileInfo.name(), (float) totalBytes / fileInfo.size());
-                if (downloadProgressTracker != null) downloadProgressTracker.apply((float) totalBytes / fileInfo.size());
-
-                return null;
-            });
-            if (Files.exists(downloadFolder.resolve(fileInfo.name()))) {
-                return Files.copy(tempFile.toPath(), downloadFolder.resolve(UUID.randomUUID().toString().substring(0, 5) + fileInfo.name())).toFile();
-            } else {
-                return Files.copy(tempFile.toPath(), downloadFolder.resolve(fileInfo.name())).toFile();
-            }
-        } catch (IOException e) {
-            logger.log(Level.SEVERE, "Error downloading file from single owner", e);
-            throw new RuntimeException(e);
-        }finally {
-            filesBeingDownloaded.remove(fileInfo.name());
-            downloadProgress.remove(fileInfo.name());
-        }
-    }
-
     /**
      * Downloads a file from multiple owners and combines them into a single file.
      *
@@ -141,36 +116,56 @@ public class FileTransferring implements Runnable, Closeable {
      * @param owners   the owners from which the file will be downloaded
      * @return the downloaded file
      */
-    public File downloadFromMultipleOwners(@NotNull FileInfo fileInfo, @NotNull Set<String> owners/*, Function<Float,Void> progressTracker*/) {
-        var uniqueFileName = fileInfo.name() + UUID.randomUUID().toString().substring(0, 5); // TODO later change this to just the filename
+    public File downloadFromMultipleOwners(@NotNull FileInfo fileInfo, @NotNull Set<String> owners/*, Function<Float,Void> progressTracker*/) { // TODO progress tracker
+        filesBeingDownloaded.add(fileInfo.name());
+        var uniqueFileName = (Files.exists(downloadFolder.resolve(fileInfo.name())) ? UUID.randomUUID().toString().substring(0, 5) : "") + fileInfo.name();
         var newFile = downloadFolder.resolve(uniqueFileName).toFile();
         List<Future<File>> futureTempFiles = new ArrayList<>();
-        for (String owner : owners) {
-            futureTempFiles.add(asyncDownloadFileBytes(fileInfo.name(), owner, 0, fileInfo.size(), totalBytes -> {
+        List<String> ownerList = new ArrayList<>(owners);
+        ownerList.add(fileInfo.owner()); // delete
+        final long bytesPerOwner = fileInfo.size() / ownerList.size();
+        long remainingBytes = fileInfo.size() % ownerList.size();
+
+        for (int i = 0; i < ownerList.size(); i++) {
+            String owner = (String) ownerList.toArray()[i];
+            long startByte = i * bytesPerOwner;
+            long endByte = (i + 1) * bytesPerOwner + (i == ownerList.size() - 1 ? remainingBytes : 0);
+            futureTempFiles.add(asyncDownloadFileBytes(fileInfo.name(), owner, startByte, endByte, (totalBytes) -> {
                 downloadProgress.put(fileInfo.name(), (float) totalBytes / fileInfo.size());
                 return null;
             }));
         }
-        try (FileOutputStream fileOutputStream = new FileOutputStream(newFile)) {
-            for (Future<File> futureTempFile : futureTempFiles) {
-                try {
-                    File tempFile = futureTempFile.get();
-                    try (FileInputStream fileInputStream = new FileInputStream(tempFile)) {
-                        int bytes;
-                        byte[] buffer = new byte[BUFFER_SIZE];
-                        while ((bytes = fileInputStream.read(buffer)) != -1) {
-                            fileOutputStream.write(buffer, 0, bytes);
-                        }
-                    }
-                    tempFile.delete();
-                } catch (ExecutionException | InterruptedException e) {
-                    logger.log(Level.SEVERE, "Error downloading file from multiple owners", e);
-                }
+        if (futureTempFiles.size() == 1) {
+            try {
+                File tempFile = futureTempFiles.getFirst().get();
+                Files.move(tempFile.toPath(), newFile.toPath());
+            } catch (InterruptedException | ExecutionException | IOException e) {
+                throw new RuntimeException(e);
             }
-
-        } catch (IOException e) {
-            logger.log(Level.SEVERE, "Error writing combined file", e);
+        } else {
+            try (FileOutputStream fileOutputStream = new FileOutputStream(newFile)) {
+                for (Future<File> futureTempFile : futureTempFiles) {
+                    try {
+                        File tempFile = futureTempFile.get();
+                        try (FileInputStream fileInputStream = new FileInputStream(tempFile)) {
+                            int bytes;
+                            byte[] buffer = new byte[BUFFER_SIZE];
+                            while ((bytes = fileInputStream.read(buffer)) != -1) {
+                                fileOutputStream.write(buffer, 0, bytes);
+                            }
+                        }
+                        tempFile.delete();
+                    } catch (ExecutionException | InterruptedException e) {
+                        logger.log(Level.SEVERE, "Error downloading file from multiple owners", e);
+                    }
+                }
+            } catch (IOException e) {
+                logger.log(Level.SEVERE, "Error writing combined file", e);
+            }
         }
+
+        filesBeingDownloaded.remove(fileInfo.name());
+        downloadProgress.remove(fileInfo.name());
 
         return newFile;
     }
@@ -191,8 +186,12 @@ public class FileTransferring implements Runnable, Closeable {
      */
     private @NotNull File downloadFileBytes(String fileName, String owner, long startByte, long endByte, Function<Long, Void> progressTracker) throws IOException {
         // Creates temp folder if not exists
-        if (!Files.exists(downloadFolder.resolve("temp"))) {
-            Files.createDirectory(downloadFolder.resolve("temp"));
+        Path temporaryFolder = downloadFolder.resolve(".temp");
+        synchronized (tempFolderLock){
+            if (!Files.exists(temporaryFolder)) {
+                Files.createDirectory(temporaryFolder);
+                temporaryFolder.toFile().deleteOnExit();
+            }
         }
         File tempFile = File.createTempFile(fileName, startByte + "-" + endByte, downloadFolder.resolve("temp").toFile());
         tempFile.deleteOnExit();
@@ -201,27 +200,25 @@ public class FileTransferring implements Runnable, Closeable {
                 Socket socket = new Socket(owner, FILE_TRANSFER_PORT);
                 PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
                 DataInputStream dataInputStream = new DataInputStream(socket.getInputStream());
-                FileOutputStream fileOutputStream = new FileOutputStream(tempFile);
+                FileOutputStream fileOutputStream = new FileOutputStream(tempFile)
         ) {
             writer.println(ProtocolCommand.GET.format(fileName, startByte, endByte));
             writer.flush();
-            logger.info("Requesting file: " + fileName);
 
             int bytes;
-            byte[] buffer = new byte[4 * 1024];
+            byte[] buffer = new byte[BUFFER_SIZE];
             long totalBytes = 0;
             while ((bytes = dataInputStream.read(buffer)) != -1) {
+                bytes = (int) Math.min(bytes, endByte - startByte - totalBytes);
                 totalBytes += bytes;
                 progressTracker.apply(totalBytes);
                 fileOutputStream.write(buffer, 0, bytes);
-                logger.info("Received " + bytes + " bytes, total received: " + totalBytes + " bytes");
 
                 if (totalBytes >= endByte - startByte) {
                     break;
                 }
             }
             fileOutputStream.flush();
-            logger.info("File received: " + fileName);
             return tempFile;
 
         } catch (IOException e) {

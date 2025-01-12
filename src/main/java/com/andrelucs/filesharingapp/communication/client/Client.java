@@ -152,22 +152,6 @@ public class Client implements Closeable, SearchEventListener {
     }
     //---
 
-    // Download methods
-    public void downloadFile(FileInfo fileInfo) {
-        if(fileTransferring == null) {
-            throw new IllegalStateException("FileTransferring not initialized. You must have a shared folder to download files.");
-        }
-
-        new Thread(() -> {
-            try {
-                var file = fileTransferring.downloadFromSingleOwner(fileInfo, null);
-                shareFile(file);
-            } catch (FileAlreadyExistsException e) {
-                System.err.println("Trying to download a File that already exists: " + e.getMessage());
-            }
-        }).start();
-    }
-
     /**
      * Download a file from multiple owners
      * @param fileName The name of the file
@@ -180,10 +164,6 @@ public class Client implements Closeable, SearchEventListener {
             throw new IllegalStateException("You must have a shared folder to download files.");
         }
         System.out.println("Downloading file " + fileName + " from owners: " + owners);
-        if (owners.size() == 1) {
-            downloadFile(new FileInfo(fileName, owners.iterator().next(), fileSize)); // Size is not important here
-            return;
-        }
         FileInfo fileInfo = searchFiles.stream()
                 .filter(file -> file.name().equals(fileName))
                 .findFirst()
@@ -191,8 +171,6 @@ public class Client implements Closeable, SearchEventListener {
         File downloadedFile = fileTransferring.downloadFromMultipleOwners(fileInfo, owners);
         shareFile(downloadedFile);
     }
-
-    //-----
 
     // Utility methods
     private void waitConnection() {
