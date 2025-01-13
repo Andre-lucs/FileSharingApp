@@ -1,5 +1,6 @@
 package com.andrelucs.filesharingapp.components;
 
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
@@ -20,7 +21,7 @@ public class FileItem extends HBox implements Initializable {
     private Label fileNameLabel;
     @FXML
     private ImageView imageView;
-    private final File file;
+    private File file;
 
     public FileItem(String fileName) {
         this(new File(fileName));
@@ -89,5 +90,29 @@ public class FileItem extends HBox implements Initializable {
     public void initialize(URL location, ResourceBundle resources) {
         fileNameLabel.setText(file.getName());
         setIcon(pickImage(file));
+    }
+
+    public void setFile(File file) {
+        this.file = file;
+        fileNameLabel.setText(file.getName());
+        setIcon(pickImage(file));
+    }
+
+    public void setFileName(String fileName) {
+        if (Platform.isFxApplicationThread()) {
+            fileNameLabel.setText(fileName);
+        } else {
+            Platform.runLater(() -> fileNameLabel.setText(fileName));
+
+        }
+        this.file = new File(fileName);
+    }
+
+    public File getFile() {
+        return file;
+    }
+
+    public String getFileName() {
+        return file.getName();
     }
 }
