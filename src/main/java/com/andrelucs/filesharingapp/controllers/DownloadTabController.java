@@ -16,6 +16,7 @@ import javafx.scene.layout.TilePane;
 
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.ResourceBundle;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -38,7 +39,31 @@ public class DownloadTabController implements Initializable {
     private FileInfo selectedFile;
     private final List<String> shownFiles = new CopyOnWriteArrayList<>();
     private final List<FileInfo> fileInfoList = new CopyOnWriteArrayList<>();
-    private final Object pageCountLock = new Object();
+    private int currentPageIndex = 0;
+    private final ScrollPane scrollPane;
+    private final TilePane tilePane;
+    private final FileItem[] fileItems;
+    private boolean updatingPage;
+    private boolean updateAgain;
+
+    public DownloadTabController() {
+        fileItems = new FileItem[MAX_FILES_PER_PAGE];
+        for (int i = 0; i < fileItems.length; i++) {
+            fileItems[i] = new FileItem("");
+            fileItems[i].setMaxWidth(300);
+        }
+
+        this.scrollPane = new ScrollPane();
+        scrollPane.setFitToWidth(true);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+
+        tilePane = new TilePane();
+        tilePane.setAlignment(Pos.TOP_CENTER);
+        tilePane.setHgap(10);
+        tilePane.setVgap(10);
+        scrollPane.setContent(tilePane);
+    }
 
     public void updateClient() {
         System.out.println("initializing download tab");
@@ -67,9 +92,9 @@ public class DownloadTabController implements Initializable {
             alert.showAndWait();
             return;
         }
-        try{
+        try {
             client.downloadFileFromOwners(selectedFile.name(), selectedFileOwners, selectedFile.size());
-        }catch (IllegalStateException e){
+        } catch (IllegalStateException e) {
             Alert alert = new Alert(Alert.AlertType.ERROR);
             alert.setTitle("Error");
             alert.setHeaderText("Download error");
@@ -90,12 +115,19 @@ public class DownloadTabController implements Initializable {
         if (shownFiles.contains(fileInfo.name())) return; // Do not show the same file twice
         shownFiles.add(fileInfo.name());
         fileInfoList.add(fileInfo);
-        Platform.runLater(() -> {
-            synchronized (pageCountLock) {
-                searchPagination.setPageCount((int) Math.ceil(fileInfoList.size() / (double) MAX_FILES_PER_PAGE));
+        int newPageCount = (int) Math.ceil(fileInfoList.size() / (double) MAX_FILES_PER_PAGE);
+        if (newPageCount != searchPagination.getPageCount())
+            Platform.runLater(() -> searchPagination.setPageCount(newPageCount));
+        if (shownFiles.size() <= MAX_FILES_PER_PAGE) {
+            System.out.println("updtaing content for " + fileInfo);
+            if (updatingPage) {
+                updateAgain = true;
+                return;
             }
-        });
+            Platform.runLater(this::updatePageContent);
+        }
     }
+
 
     private void showFileInfo(FileInfo fileInfo) {
         selectedFile = fileInfo;
@@ -116,27 +148,34 @@ public class DownloadTabController implements Initializable {
     }
 
     private Node createPage(Integer pageIndex) {
-        List<FileInfo> copy = new ArrayList<>(fileInfoList);
-        List<FileInfo> filesInPage = new ArrayList<>(copy.subList(pageIndex * MAX_FILES_PER_PAGE, Math.min((pageIndex + 1) * MAX_FILES_PER_PAGE, copy.size())));
-        //Vertical scrolling if needed
-        ScrollPane scrollPane = new ScrollPane();
-        scrollPane.setFitToWidth(true);
-        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        currentPageIndex = pageIndex;
 
-        TilePane tilePane = new TilePane();
-        tilePane.setAlignment(Pos.TOP_CENTER);
-        tilePane.setHgap(10);
-        tilePane.setVgap(10);
+        Platform.runLater(this::updatePageContent);
 
-        filesInPage.forEach(fileInfo -> {
-            var fileItem = new FileItem(fileInfo.name());
-            fileItem.setMaxWidth(300);
-            fileItem.setOnMouseClicked(event -> showFileInfo(fileInfo));
-            tilePane.getChildren().add(fileItem);
-        });
-
-        scrollPane.setContent(tilePane);
         return scrollPane;
     }
+
+    private void updatePageContent() {
+        updatingPage = true;
+        List<FileInfo> copy = new ArrayList<>(fileInfoList);
+        int sliceStart = currentPageIndex * MAX_FILES_PER_PAGE;
+        int sliceEnd = Math.min((currentPageIndex + 1) * MAX_FILES_PER_PAGE, copy.size());
+        if (sliceStart >= copy.size()) return;
+        List<FileInfo> filesInPage = new ArrayList<>(copy.subList(sliceStart, sliceEnd));
+
+        for (int i = 0; i < filesInPage.size(); i++) {
+            FileInfo fileInfo = filesInPage.get(i);
+            FileItem fileItem = fileItems[i];
+            fileItem.setFileName(fileInfo.name());
+            fileItem.setOnMouseClicked(event -> showFileInfo(fileInfo));
+        }
+        var filesToDisplay = Arrays.copyOf(fileItems, filesInPage.size());
+        tilePane.getChildren().setAll(filesToDisplay);
+        if (updateAgain) {
+            updateAgain = false;
+            Platform.runLater(this::updatePageContent);
+        }
+        updatingPage = false;
+    }
+
 }
