@@ -29,6 +29,7 @@ public class FileTransferring implements Runnable, Closeable {
     private final List<String> filesBeingDownloaded = new ArrayList<>();
     private final Map<String, Float> downloadProgress = new HashMap<>();
     private final Object tempFolderLock = new Object();
+    private final List<FileTraficListener> traficListeners = new ArrayList<>();
 
     public FileTransferring(Client client, Path downloadFolder) throws IOException {
         this.serverSocket = new ServerSocket(FILE_TRANSFER_PORT);
@@ -84,6 +85,7 @@ public class FileTransferring implements Runnable, Closeable {
 
             // Send the file -> closes the input stream -> closes the socket
             try (FileInputStream fileInputStream = new FileInputStream(requestedFile)) {
+                traficListeners.forEach(listener -> listener.onFileAction(FileAction.UPLOAD, requestedFile.getName()));
                 int bytes;
                 long totalBytes = 0;
                 byte[] buffer = new byte[BUFFER_SIZE];
@@ -118,6 +120,7 @@ public class FileTransferring implements Runnable, Closeable {
      */
     public File downloadFromMultipleOwners(@NotNull FileInfo fileInfo, @NotNull Set<String> owners/*, Function<Float,Void> progressTracker*/) { // TODO progress tracker
         filesBeingDownloaded.add(fileInfo.name());
+        traficListeners.forEach(listener -> listener.onFileAction(FileAction.DOWNLOAD, fileInfo.name()));
         var uniqueFileName = (Files.exists(downloadFolder.resolve(fileInfo.name())) ? UUID.randomUUID().toString().substring(0, 5) : "") + fileInfo.name();
         var newFile = downloadFolder.resolve(uniqueFileName).toFile();
         List<Future<File>> futureTempFiles = new ArrayList<>();
@@ -125,7 +128,6 @@ public class FileTransferring implements Runnable, Closeable {
         ownerList.add(fileInfo.owner()); // delete
         final long bytesPerOwner = fileInfo.size() / ownerList.size();
         long remainingBytes = fileInfo.size() % ownerList.size();
-
         for (int i = 0; i < ownerList.size(); i++) {
             String owner = (String) ownerList.toArray()[i];
             long startByte = i * bytesPerOwner;
@@ -157,6 +159,7 @@ public class FileTransferring implements Runnable, Closeable {
                         tempFile.delete();
                     } catch (ExecutionException | InterruptedException e) {
                         logger.log(Level.SEVERE, "Error downloading file from multiple owners", e);
+                        throw new RuntimeException(e);
                     }
                 }
             } catch (IOException e) {
@@ -166,7 +169,7 @@ public class FileTransferring implements Runnable, Closeable {
 
         filesBeingDownloaded.remove(fileInfo.name());
         downloadProgress.remove(fileInfo.name());
-
+        traficListeners.forEach(listener -> listener.onFileAction(FileAction.DOWNLOAD_COMPLETE, fileInfo.name()));
         return newFile;
     }
 
@@ -223,6 +226,7 @@ public class FileTransferring implements Runnable, Closeable {
 
         } catch (IOException e) {
             logger.log(Level.SEVERE, "Error downloading file bytes", e);
+            traficListeners.forEach(listener -> listener.onFileAction(FileAction.DOWNLOAD, fileName));
             throw new RuntimeException(e);
         }
     }
@@ -243,5 +247,9 @@ public class FileTransferring implements Runnable, Closeable {
 
     public boolean isBeingUploaded(File file) {
         return filesBeingUploaded.contains(file.getName());
+    }
+
+    public void addFileTraficListener(FileTraficListener listener) {
+        traficListeners.add(listener);
     }
 }
