@@ -2,6 +2,7 @@ package com.andrelucs.filesharingapp;
 
 import atlantafx.base.theme.NordDark;
 import com.andrelucs.filesharingapp.communication.client.Client;
+import com.andrelucs.filesharingapp.communication.client.file.FileAction;
 import com.andrelucs.filesharingapp.components.FolderSelectionAlert;
 import com.andrelucs.filesharingapp.components.ServerConnectionAlert;
 import com.andrelucs.filesharingapp.controllers.MainViewController;
@@ -92,6 +93,18 @@ public class FileSharingApplication extends Application {
                 sharingClient.close();
             }
             sharingClient = new Client(serverIpAddress, sharedFolder);
+            sharingClient.getFileTransferring().addFileTraficListener((action, filename) -> {
+                Icon icon = Icon.fromAction(action);
+                String message = switch (action) {
+                    case FileAction.UPLOAD -> "Uploading:";
+                    case FileAction.DOWNLOAD -> "Downloading:";
+                    case FileAction.ERROR -> "Error:";
+                    case FileAction.DOWNLOAD_COMPLETE -> "Finished downloading:";
+                    default -> "Success:";
+                };
+
+                showNotification(message, filename, icon);
+            });
             sharingClient.start();
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -125,6 +138,10 @@ public class FileSharingApplication extends Application {
 
     public static void deleteFile(File file) {
         sharingClient.deleteFile(file);
+    }
+
+    public static void showNotification(String action, String fileName, Icon icon) {
+        mainViewController.showNotification(action, fileName, icon.getPath());
     }
 
     public static void main(String[] args) {

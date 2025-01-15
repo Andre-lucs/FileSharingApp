@@ -318,4 +318,8 @@ public class Client implements Closeable, SearchEventListener {
         }
         return null;
     }
+
+    public FileTransferring getFileTransferring(){
+        return fileTransferring;
+    }
 }
