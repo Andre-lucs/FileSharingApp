@@ -13,12 +13,10 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.TilePane;
+import org.jetbrains.annotations.NotNull;
 
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.ResourceBundle;
+import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
@@ -92,15 +90,24 @@ public class DownloadTabController implements Initializable {
             alert.showAndWait();
             return;
         }
-        try {
-            client.downloadFileFromOwners(selectedFile.name(), selectedFileOwners, selectedFile.size());
-        } catch (IllegalStateException e) {
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Error");
-            alert.setHeaderText("Download error");
-            alert.setContentText(e.getMessage());
-            alert.showAndWait();
-        }
+        Thread downloadThread = getDownloadThread(selectedFileOwners);
+        downloadThread.start();
+    }
+
+    private @NotNull Thread getDownloadThread(Set<String> selectedFileOwners) {
+        Thread downloadThread = new Thread(() -> {
+            try {
+                client.downloadFileFromOwners(selectedFile.name(), selectedFileOwners, selectedFile.size());
+            } catch (IllegalStateException e) {
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Error");
+                alert.setHeaderText("Download error");
+                alert.setContentText(e.getMessage());
+                alert.showAndWait();
+            }
+        });
+        downloadThread.setName("Download Thread");
+        return downloadThread;
     }
 
     @FXML
