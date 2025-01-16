@@ -15,6 +15,8 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Function;
 import java.util.logging.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class FileTransferring implements Runnable, Closeable {
     private static final int FILE_TRANSFER_PORT = 1235;
@@ -66,17 +68,24 @@ public class FileTransferring implements Runnable, Closeable {
             }
             String[] parts = getRequest.split(" ");
 
-            File requestedFile = client.getFile(parts[1]);
-            if (requestedFile == null) {
-                dataOutputStream.writeUTF("File not found");
-                return;
+            File requestedFile = client.getFile(Client.decodeFileName(parts[1]));
+            if (requestedFile == null || !requestedFile.exists() || !requestedFile.canRead()) {
+                String fileName = parts[1];
+                for (int i = 0; i < parts.length; i++) {
+                    if (parts[i].contains(".")) {
+                        fileName = Stream.of(parts).skip(1).limit(i).collect(Collectors.joining(" "));
+                        break;
+                    }
+                }
+                if(fileName.equals(parts[1])) {
+                    return;
+                }
+                requestedFile = client.getFile(fileName);
+                if(requestedFile == null || !requestedFile.exists() || !requestedFile.canRead()) {
+                    return;
+                }
             }
-            if (!requestedFile.exists() || !requestedFile.canRead()) {
-                logger.severe("File not found or cannot be read: " + requestedFile.getAbsolutePath());
-                dataOutputStream.writeUTF("File not found or cannot be read");
-                return;
-            }
-            String[] range = parts[2].split("-");
+            String[] range = parts[parts.length-1].split("-");
             long startByte = Integer.parseInt(range[0]);
             long endByte = (range.length > 1) ? Integer.parseInt(range[1]) : requestedFile.length();
             long contentLength = endByte - startByte;
@@ -85,7 +94,8 @@ public class FileTransferring implements Runnable, Closeable {
 
             // Send the file -> closes the input stream -> closes the socket
             try (FileInputStream fileInputStream = new FileInputStream(requestedFile)) {
-                traficListeners.forEach(listener -> listener.onFileAction(FileAction.UPLOAD, requestedFile.getName()));
+                File finalRequestedFile = requestedFile;
+                traficListeners.forEach(listener -> listener.onFileAction(FileAction.UPLOAD, finalRequestedFile.getName()));
                 int bytes;
                 long totalBytes = 0;
                 byte[] buffer = new byte[BUFFER_SIZE];
@@ -188,6 +198,7 @@ public class FileTransferring implements Runnable, Closeable {
      * @throws IOException if an I/O error occurs
      */
     private @NotNull File downloadFileBytes(String fileName, String owner, long startByte, long endByte, Function<Long, Void> progressTracker) throws IOException {
+
         // Creates temp folder if not exists
         Path temporaryFolder = downloadFolder.resolve(".temp");
         synchronized (tempFolderLock){
@@ -196,7 +207,21 @@ public class FileTransferring implements Runnable, Closeable {
                 temporaryFolder.toFile().deleteOnExit();
             }
         }
-        File tempFile = File.createTempFile(fileName, startByte + "-" + endByte, downloadFolder.resolve("temp").toFile());
+        File file = getBytes(fileName, owner, startByte, endByte, progressTracker);
+        if (file.length() == 0) {
+            file.delete();
+            String encodedFileName = Client.encodeFileName(fileName);
+            file = getBytes(encodedFileName, owner, startByte, endByte, progressTracker);
+            if (file.length() == 0) {
+                logger.log(Level.SEVERE, "Error downloading file bytes for both encoded and uncoded name: " + fileName);
+                throw new IOException("Error downloading file bytes for encoded name: " + fileName);
+            }
+        }
+        return file;
+    }
+
+    private @NotNull File getBytes(String fileName, String owner, long startByte, long endByte, Function<Long, Void> progressTracker) throws IOException {
+        File tempFile = File.createTempFile(fileName, startByte + "-" + endByte + UUID.randomUUID(), downloadFolder.toFile());
         tempFile.deleteOnExit();
 
         try (
@@ -211,6 +236,7 @@ public class FileTransferring implements Runnable, Closeable {
             int bytes;
             byte[] buffer = new byte[BUFFER_SIZE];
             long totalBytes = 0;
+
             while ((bytes = dataInputStream.read(buffer)) != -1) {
                 bytes = (int) Math.min(bytes, endByte - startByte - totalBytes);
                 totalBytes += bytes;
