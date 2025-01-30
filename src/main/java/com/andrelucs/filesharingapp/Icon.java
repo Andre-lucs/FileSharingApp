@@ -27,6 +27,7 @@ public enum Icon {
             case DOWNLOAD -> DOWNLOAD;
             case DELETE, DOWNLOAD_COMPLETE -> CHECK;
             case ERROR -> ERROR;
+            default -> CHECK;
         };
     }
 }

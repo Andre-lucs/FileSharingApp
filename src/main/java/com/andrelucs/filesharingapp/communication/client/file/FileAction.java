@@ -5,5 +5,6 @@ public enum FileAction {
     DOWNLOAD,
     DELETE,
     DOWNLOAD_COMPLETE,
+    DOWNLOAD_PROGRESS,
     ERROR
 }

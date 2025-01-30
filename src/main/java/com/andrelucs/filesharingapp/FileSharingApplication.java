@@ -93,7 +93,7 @@ public class FileSharingApplication extends Application {
                 sharingClient.close();
             }
             sharingClient = new Client(serverIpAddress, sharedFolder);
-            sharingClient.getFileTransferring().addFileTraficListener((action, filename) -> {
+            sharingClient.getFileTransferring().addFileTraficListener((action, fileInfo) -> {
                 Icon icon = Icon.fromAction(action);
                 String message = switch (action) {
                     case FileAction.UPLOAD -> "Uploading:";
@@ -103,7 +103,7 @@ public class FileSharingApplication extends Application {
                     default -> "Success:";
                 };
 
-                showNotification(message, filename, icon);
+                showNotification(message, fileInfo.name(), icon);
             });
             sharingClient.start();
         } catch (IOException e) {

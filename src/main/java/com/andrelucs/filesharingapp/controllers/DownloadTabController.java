@@ -3,6 +3,7 @@ package com.andrelucs.filesharingapp.controllers;
 import com.andrelucs.filesharingapp.FileSharingApplication;
 import com.andrelucs.filesharingapp.communication.FileInfo;
 import com.andrelucs.filesharingapp.communication.client.Client;
+import com.andrelucs.filesharingapp.communication.client.file.DownloadProgressListener;
 import com.andrelucs.filesharingapp.components.FileItem;
 import com.andrelucs.filesharingapp.components.UserSharing;
 import javafx.application.Platform;
@@ -12,16 +13,25 @@ import javafx.fxml.Initializable;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.TilePane;
+import javafx.scene.shape.Rectangle;
 import org.jetbrains.annotations.NotNull;
 
 import java.net.URL;
 import java.util.*;
+import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
-public class DownloadTabController implements Initializable {
+public class DownloadTabController implements Initializable, DownloadProgressListener {
     private static final int MAX_FILES_PER_PAGE = 30;
+    private static final long UPDATE_INTERVAL_MS = 50; // Update interval in milliseconds
+    private long lastUpdateTime = 0;
+
     @FXML
     Label fileNameLabel;
     @FXML
@@ -32,6 +42,8 @@ public class DownloadTabController implements Initializable {
     TextField searchInput;
     @FXML
     private Pagination searchPagination;
+    @FXML
+    private HBox downloadProgressBar;
 
     private Client client;
     private FileInfo selectedFile;
@@ -43,6 +55,7 @@ public class DownloadTabController implements Initializable {
     private final FileItem[] fileItems;
     private boolean updatingPage;
     private boolean updateAgain;
+    private final Map<String, Rectangle> progressRectangles = new HashMap<>();
 
     public DownloadTabController() {
         fileItems = new FileItem[MAX_FILES_PER_PAGE];
@@ -71,6 +84,7 @@ public class DownloadTabController implements Initializable {
             newClient.addSearchResultListener(this::handleSearchResult);
         }
         client = newClient;
+        client.addDownloadProgressListener(this);
     }
 
     @FXML
@@ -90,6 +104,10 @@ public class DownloadTabController implements Initializable {
             alert.showAndWait();
             return;
         }
+        progressRectangles.clear();
+        downloadProgressBar.getChildren().clear();
+        selectedFileOwners.forEach(owner -> progressRectangles.put(owner, new Rectangle(0, 20)));
+        downloadProgressBar.getChildren().addAll(progressRectangles.values());
         Thread downloadThread = getDownloadThread(selectedFileOwners);
         downloadThread.start();
     }
@@ -185,4 +203,19 @@ public class DownloadTabController implements Initializable {
         updatingPage = false;
     }
 
+    @Override
+    public void onProgressUpdate(FileInfo fileInfo, float progress) {
+        if (!Objects.equals(fileInfo.name(), selectedFile.name())) return;
+        Rectangle rect = progressRectangles.get(fileInfo.owner());
+        if (rect == null) return;
+        double maxWidth = downloadProgressBar.getWidth();
+        double finalWidth = maxWidth * progress / 100;
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastUpdateTime >= UPDATE_INTERVAL_MS
+                || finalWidth - rect.getWidth() > 2
+                || finalWidth == maxWidth) {
+            lastUpdateTime = currentTime;
+            rect.setWidth(finalWidth);
+        }
+    }
 }

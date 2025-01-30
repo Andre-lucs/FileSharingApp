@@ -95,7 +95,7 @@ public class FileTransferring implements Runnable, Closeable {
             // Send the file -> closes the input stream -> closes the socket
             try (FileInputStream fileInputStream = new FileInputStream(requestedFile)) {
                 File finalRequestedFile = requestedFile;
-                traficListeners.forEach(listener -> listener.onFileAction(FileAction.UPLOAD, finalRequestedFile.getName()));
+                traficListeners.forEach(listener -> listener.onFileAction(FileAction.UPLOAD, new FileInfo(finalRequestedFile.getName(), socket.getInetAddress().toString(), finalRequestedFile.length())));
                 int bytes;
                 long totalBytes = 0;
                 byte[] buffer = new byte[BUFFER_SIZE];
@@ -130,12 +130,11 @@ public class FileTransferring implements Runnable, Closeable {
      */
     public File downloadFromMultipleOwners(@NotNull FileInfo fileInfo, @NotNull Set<String> owners/*, Function<Float,Void> progressTracker*/) { // TODO progress tracker
         filesBeingDownloaded.add(fileInfo.name());
-        traficListeners.forEach(listener -> listener.onFileAction(FileAction.DOWNLOAD, fileInfo.name()));
+        traficListeners.forEach(listener -> listener.onFileAction(FileAction.DOWNLOAD, fileInfo));
         var uniqueFileName = (Files.exists(downloadFolder.resolve(fileInfo.name())) ? UUID.randomUUID().toString().substring(0, 5) : "") + fileInfo.name();
         var newFile = downloadFolder.resolve(uniqueFileName).toFile();
         List<Future<File>> futureTempFiles = new ArrayList<>();
         List<String> ownerList = new ArrayList<>(owners);
-        ownerList.add(fileInfo.owner()); // delete
         final long bytesPerOwner = fileInfo.size() / ownerList.size();
         long remainingBytes = fileInfo.size() % ownerList.size();
         for (int i = 0; i < ownerList.size(); i++) {
@@ -143,7 +142,8 @@ public class FileTransferring implements Runnable, Closeable {
             long startByte = i * bytesPerOwner;
             long endByte = (i + 1) * bytesPerOwner + (i == ownerList.size() - 1 ? remainingBytes : 0);
             futureTempFiles.add(asyncDownloadFileBytes(fileInfo.name(), owner, startByte, endByte, (totalBytes) -> {
-                downloadProgress.put(fileInfo.name(), (float) totalBytes / fileInfo.size());
+                downloadProgress.put(fileInfo.name(), (float) totalBytes / fileInfo.size() * 100);
+                traficListeners.forEach(listener -> listener.onFileAction(FileAction.DOWNLOAD_PROGRESS, fileInfo));
                 return null;
             }));
         }
@@ -179,7 +179,7 @@ public class FileTransferring implements Runnable, Closeable {
 
         filesBeingDownloaded.remove(fileInfo.name());
         downloadProgress.remove(fileInfo.name());
-        traficListeners.forEach(listener -> listener.onFileAction(FileAction.DOWNLOAD_COMPLETE, fileInfo.name()));
+        traficListeners.forEach(listener -> listener.onFileAction(FileAction.DOWNLOAD_COMPLETE, fileInfo));
         return newFile;
     }
 
@@ -252,7 +252,7 @@ public class FileTransferring implements Runnable, Closeable {
 
         } catch (IOException e) {
             logger.log(Level.SEVERE, "Error downloading file bytes", e);
-            traficListeners.forEach(listener -> listener.onFileAction(FileAction.DOWNLOAD, fileName));
+            traficListeners.forEach(listener -> listener.onFileAction(FileAction.DOWNLOAD, new FileInfo(fileName, owner, endByte - startByte)));
             throw new RuntimeException(e);
         }
     }
@@ -277,5 +277,13 @@ public class FileTransferring implements Runnable, Closeable {
 
     public void addFileTraficListener(FileTraficListener listener) {
         traficListeners.add(listener);
+    }
+
+    public void addDownloadProgressListener(DownloadProgressListener listener) {
+        traficListeners.add((action, fileInfo) -> {
+            if (action == FileAction.DOWNLOAD_PROGRESS) {
+                listener.onProgressUpdate(fileInfo, downloadProgress.get(fileInfo.name()));
+            }
+        });
     }
 }

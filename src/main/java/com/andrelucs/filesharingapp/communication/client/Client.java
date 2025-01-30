@@ -2,6 +2,7 @@ package com.andrelucs.filesharingapp.communication.client;
 
 import com.andrelucs.filesharingapp.communication.FileInfo;
 import com.andrelucs.filesharingapp.communication.ProtocolCommand;
+import com.andrelucs.filesharingapp.communication.client.file.DownloadProgressListener;
 import com.andrelucs.filesharingapp.communication.client.file.FileAlreadyExistsException;
 import com.andrelucs.filesharingapp.communication.client.file.FileTracker;
 import com.andrelucs.filesharingapp.communication.client.file.FileTransferring;
@@ -321,5 +322,9 @@ public class Client implements Closeable, SearchEventListener {
 
     public FileTransferring getFileTransferring(){
         return fileTransferring;
+    }
+
+    public void addDownloadProgressListener(DownloadProgressListener listener) {
+        fileTransferring.addDownloadProgressListener(listener);
     }
 }
