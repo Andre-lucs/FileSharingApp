@@ -106,7 +106,11 @@ public class DownloadTabController implements Initializable, DownloadProgressLis
         }
         progressRectangles.clear();
         downloadProgressBar.getChildren().clear();
-        selectedFileOwners.forEach(owner -> progressRectangles.put(owner, new Rectangle(0, 20)));
+        selectedFileOwners.forEach(owner -> {
+            Rectangle rectangle = new Rectangle(0, 20);
+            rectangle.setStyle("-fx-fill: #0088bb");
+            progressRectangles.put(owner, rectangle);
+        });
         downloadProgressBar.getChildren().addAll(progressRectangles.values());
         Thread downloadThread = getDownloadThread(selectedFileOwners);
         downloadThread.start();
@@ -144,7 +148,6 @@ public class DownloadTabController implements Initializable, DownloadProgressLis
         if (newPageCount != searchPagination.getPageCount())
             Platform.runLater(() -> searchPagination.setPageCount(newPageCount));
         if (shownFiles.size() <= MAX_FILES_PER_PAGE) {
-            System.out.println("updtaing content for " + fileInfo);
             if (updatingPage) {
                 updateAgain = true;
                 return;
