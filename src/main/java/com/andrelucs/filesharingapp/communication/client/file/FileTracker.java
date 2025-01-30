@@ -1,23 +1,24 @@
 package com.andrelucs.filesharingapp.communication.client.file;
 
-import com.andrelucs.filesharingapp.communication.FileInfo;
 import com.andrelucs.filesharingapp.communication.client.Client;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 
 public class FileTracker {
 
     private final Map<String, File> files = new HashMap<>();
     protected final List<String> sharedFiles = new ArrayList<>();
-//    protected final Map<String, Boolean> sharedFiles = new HashMap<>();
     private final Client client;
 
-    private final Object deletingFilesLock = new Object();
+    private CountDownLatch deletionLatch;
 
     public FileTracker(Client client, Path sharedFolder) {
         this.client = client;
@@ -36,11 +37,12 @@ public class FileTracker {
     /**
      * Shares a file by adding it to the local tracking maps and sending a create file request to the server.
      * This method immediately initiates the sharing process for the specified file.
+     *
      * @return true if the file was successfully shared, false if the file is a directory or is an empty file.
      */
     public boolean shareFile(File file) {
         if (file.isDirectory()) return false;
-        if(file.length() == 0) return false;
+        if (file.length() == 0) return false;
         files.put(file.getName(), file);
         client.sendCreateFileRequest(file.getName(), file.length());
         return true;
@@ -49,27 +51,22 @@ public class FileTracker {
     /**
      * Prepares a file for sharing at a later time without immediately sending a create file request.
      * This method adds the file information to the local tracking maps but does not initiate the sharing process.
+     *
      * @return true if the file was successfully shared, false if the file is a directory or is an empty file.
      */
     public boolean shareFileLater(File file) {
-        if(file.isDirectory()) return false;
-        if(file.length() == 0) return false;
+        if (file.isDirectory()) return false;
+        if (file.length() == 0) return false;
         files.put(file.getName(), file);
         return true;
     }
 
     public void deleteAllFiles() {
-        Iterator<String> iterator = files.keySet().iterator();
-        int deletedFilesCount = 0;
-        while (iterator.hasNext()) {
-            String fileName = iterator.next();
-            iterator.remove();
-            client.sendDeleteFileRequest(fileName);
-            deletedFilesCount++;
-        }
-        System.out.println("sent " + deletedFilesCount + " deletion requests");
+        int fileCount = files.size();
+        deletionLatch = new CountDownLatch(fileCount);
+        List<String> fileNames = new ArrayList<>(files.keySet());
+        fileNames.forEach(client::sendDeleteFileRequest);
         waitAllFilesDeletion();
-        System.out.println("Received confirmation of all shared files");
     }
 
     /**
@@ -87,22 +84,16 @@ public class FileTracker {
     }
 
     public void confirmUnsharedFile(String fileName) {
-        synchronized (deletingFilesLock) {
-            files.remove(fileName);
-            sharedFiles.remove(fileName);
-            deletingFilesLock.notify();
-        }
+        files.remove(fileName);
+        sharedFiles.remove(fileName);
+        deletionLatch.countDown();
     }
 
     public void waitAllFilesDeletion() {
-        synchronized (deletingFilesLock) {
-            while (!sharedFiles.isEmpty()) {
-                try {
-                    deletingFilesLock.wait();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
+        try {
+            deletionLatch.await();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 

@@ -1,9 +1,7 @@
 package com.andrelucs.filesharingapp.communication.client;
 
 import com.andrelucs.filesharingapp.communication.FileInfo;
-import com.andrelucs.filesharingapp.communication.ProtocolCommand;
 import com.andrelucs.filesharingapp.communication.client.file.DownloadProgressListener;
-import com.andrelucs.filesharingapp.communication.client.file.FileAlreadyExistsException;
 import com.andrelucs.filesharingapp.communication.client.file.FileTracker;
 import com.andrelucs.filesharingapp.communication.client.file.FileTransferring;
 
@@ -13,7 +11,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static com.andrelucs.filesharingapp.communication.ProtocolCommand.*;
 
@@ -31,8 +30,6 @@ public class Client implements Closeable, SearchEventListener {
     private final Map<String, Set<String>> searchFileOwners = new HashMap<>(); // The owners of each file
 
     private final Thread responseReadingThread;
-
-    private final Map<ProtocolCommand, Function<String, Void>> externalRequestHandlers = new HashMap<>(); // TODO: Implement
 
     private final List<Path> sharedFolders = new ArrayList<>();
     private final List<FileTracker> folderTrackers = new ArrayList<>();
@@ -109,11 +106,16 @@ public class Client implements Closeable, SearchEventListener {
 
     @Override
     public void close() throws IOException {
-        // run all deleteAllFiles asynchronously
+        ExecutorService executorService = Executors.newFixedThreadPool(folderTrackers.size());
+
+        // Run all deleteAllFiles asynchronously using the custom ExecutorService
         CompletableFuture<Void> completableFutures = CompletableFuture.allOf(folderTrackers.stream()
-                .map(tracker -> CompletableFuture.runAsync(tracker::deleteAllFiles))
+                .map(tracker -> CompletableFuture.runAsync(tracker::deleteAllFiles, executorService))
                 .toArray(CompletableFuture[]::new));
         completableFutures.join();
+
+        executorService.shutdown();
+
         writer.println(LEAVE.format());
         waitDisconnection();
         if(fileTransferring != null) fileTransferring.close();
@@ -218,7 +220,7 @@ public class Client implements Closeable, SearchEventListener {
                 if (!isConnected) break;
             }
         } catch (SocketException e) {
-            System.out.println("Exception reading responses: Server disconnected");
+            System.err.println("Exception reading responses: Server disconnected");
         } catch (IOException e) {
             e.printStackTrace();
         }

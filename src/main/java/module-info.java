@@ -20,6 +20,7 @@ module com.andrelucs.filesharingapp {
     exports com.andrelucs.filesharingapp.communication;
     opens com.andrelucs.filesharingapp.communication to javafx.fxml;
     exports com.andrelucs.filesharingapp.communication.client;
+    exports com.andrelucs.filesharingapp.communication.client.file;
 
 
 }
