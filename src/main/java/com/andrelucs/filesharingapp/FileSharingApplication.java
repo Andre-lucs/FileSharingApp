@@ -48,7 +48,7 @@ public class FileSharingApplication extends Application {
                 Platform.exit();
                 return;
             }
-        };
+        }
         FXMLLoader fxmlLoader = new FXMLLoader(FileSharingApplication.class.getResource("main-view.fxml"));
         Scene mainScene = new Scene(fxmlLoader.load(), 800, 600);
         mainViewController = fxmlLoader.getController();
@@ -100,8 +100,11 @@ public class FileSharingApplication extends Application {
                     case FileAction.DOWNLOAD -> "Downloading:";
                     case FileAction.ERROR -> "Error:";
                     case FileAction.DOWNLOAD_COMPLETE -> "Finished downloading:";
-                    default -> "Success:";
+                    default -> null;
                 };
+                if(message == null){
+                    return;
+                }
 
                 showNotification(message, fileInfo.name(), icon);
             });
@@ -134,10 +137,6 @@ public class FileSharingApplication extends Application {
     public static List<File> getSharedFiles() {
         if (sharingClient == null) return new ArrayList<>();
         return sharingClient.getSharedFiles();
-    }
-
-    public static void deleteFile(File file) {
-        sharingClient.deleteFile(file);
     }
 
     public static void showNotification(String action, String fileName, Icon icon) {

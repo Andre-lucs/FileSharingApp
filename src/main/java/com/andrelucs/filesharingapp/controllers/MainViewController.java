@@ -1,41 +1,33 @@
 package com.andrelucs.filesharingapp.controllers;
 
-import com.andrelucs.filesharingapp.Icon;
+import com.andrelucs.filesharingapp.components.NotificationItem;
+import javafx.animation.TranslateTransition;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
-import javafx.scene.control.Label;
 import javafx.scene.control.Tab;
 import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.Pane;
+import javafx.util.Duration;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 
 public class MainViewController {
     @FXML
     public Tab downloadTab;
     @FXML
     public Tab filesTab;
-
-
-    @FXML
-    private Label notificationAction;
-
-    @FXML
-    private Label notificationFileName;
-
-    @FXML
-    private ImageView notificationIcon;
-
     @FXML
     private Pane notificationOverlay;
 
+    private final List<NotificationItem> notifications = new ArrayList<>();
+
     @FXML
     public void initialize() {
-        notificationOverlay.setVisible(false);
+        notificationOverlay.setVisible(true);
         FXMLLoader filesTabLoader = new FXMLLoader(getClass().getResource("/com/andrelucs/filesharingapp/files-tab.fxml"));
         try {
             filesTab.setContent(filesTabLoader.load());
@@ -65,32 +57,29 @@ public class MainViewController {
     }
 
     public void showNotification(String action, String fileName, String iconPath) {
-        // TODO Make an animation for the notification
-        // TODO Support multiple notifications
-        CompletableFuture.supplyAsync(() ->{
-            Platform.runLater(() -> {
-                notificationAction.setText(action);
-                notificationFileName.setText(fileName);
-                notificationIcon.setImage(new Image(Objects.requireNonNull(getClass().getResourceAsStream(iconPath))));
-                notificationOverlay.setVisible(true);
-                if(iconPath == Icon.ERROR.getPath()) {
-                    notificationIcon.getParent().setStyle("-fx-background-color: #ff0000;");
-                }
-            });
-            return null;
-        }).thenAccept((v) -> {
-            try {
-                Thread.sleep(3000);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-            Platform.runLater(() -> {
-                notificationOverlay.setVisible(false);
-                notificationIcon.getParent().setStyle("");
-
-            });
-
-        });
+        NotificationItem notification = new NotificationItem(action, fileName, new Image(Objects.requireNonNull(getClass().getResourceAsStream(iconPath))));
+        notificationOverlay.setVisible(true);
+        Platform.runLater(() -> notificationOverlay.getChildren().add(notification));
+        notification.deleteIn(3000);
+        notifications.add(notification);
+        arrangeNotifications();
     }
+
+    private void arrangeNotifications() {
+        notifications.removeIf(NotificationItem::isDeleted);
+
+        double startY = 0;
+        double spacing = 60;
+
+        for (int i = 0; i < notifications.size(); i++) {
+            NotificationItem notification = notifications.get(notifications.size() - 1 - i);
+            double targetY = startY - (i * spacing);
+
+            TranslateTransition transition = new TranslateTransition(Duration.millis(300), notification);
+            transition.setToY(targetY);
+            transition.play();
+        }
+    }
+
 
 }
