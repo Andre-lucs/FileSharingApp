@@ -84,6 +84,7 @@ public class DownloadTabController implements Initializable, DownloadProgressLis
             newClient.addSearchResultListener(this::handleSearchResult);
         }
         client = newClient;
+        assert client != null;
         client.addDownloadProgressListener(this);
     }
 
@@ -106,11 +107,15 @@ public class DownloadTabController implements Initializable, DownloadProgressLis
         }
         progressRectangles.clear();
         downloadProgressBar.getChildren().clear();
-        selectedFileOwners.forEach(owner -> {
+        for (int i = 0; i < selectedFileOwners.size(); i++) {
+            String owner = selectedFileOwners.toArray()[i].toString();
             Rectangle rectangle = new Rectangle(0, 20);
             rectangle.setStyle("-fx-fill: #0088bb");
+            double maxWidth = downloadProgressBar.getWidth();
+            rectangle.setX(i * maxWidth / selectedFileOwners.size());
             progressRectangles.put(owner, rectangle);
-        });
+
+        }
         downloadProgressBar.getChildren().addAll(progressRectangles.values());
         Thread downloadThread = getDownloadThread(selectedFileOwners);
         downloadThread.start();
