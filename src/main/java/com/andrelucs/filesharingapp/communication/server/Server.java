@@ -49,6 +49,8 @@ public class Server {
     public void removeClient(Socket clientSocket) throws IOException {
         clientSocket.close();
         clientConnections.remove(clientSocket);
+        String ip = clientSocket.getInetAddress().getHostAddress();
+        clientFiles.removeIf(file -> file.owner().equals(ip));
     }
 
     private void removeClosedConnections() {
