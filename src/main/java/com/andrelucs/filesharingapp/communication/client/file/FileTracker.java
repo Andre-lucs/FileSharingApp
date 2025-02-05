@@ -127,14 +127,22 @@ public class FileTracker implements Closeable {
         return sharedFiles.contains(fileName);
     }
 
-    public List<File> getSharedFiles() {
+    public List<File> getTrackedFiles() {
         return new ArrayList<>(files.values());
     }
 
-    public void unTrackFile(File file) {
-        files.remove(file.getName());
+    public List<String> getSharedFileNames() {
+        return new ArrayList<>(sharedFiles);
+    }
+
+    public void unShareFile(File file) {
         sharedFiles.remove(file.getName());
         client.sendDeleteFileRequest(file.getName());
+    }
+
+    public void stopTrackingFile(File file) {
+        files.remove(file.getName());
+        unShareFile(file);
     }
 
     private void processWatchEvents() {
@@ -148,9 +156,9 @@ public class FileTracker implements Closeable {
                     if (kind == StandardWatchEventKinds.ENTRY_CREATE) {
                         shareFile(filePath.toFile());
                     } else if (kind == StandardWatchEventKinds.ENTRY_DELETE) {
-                        unTrackFile(filePath.toFile());
+                        unShareFile(filePath.toFile());
                     } else if (kind == StandardWatchEventKinds.ENTRY_MODIFY) {
-                        unTrackFile(filePath.toFile());
+                        unShareFile(filePath.toFile());
                         shareFile(filePath.toFile());
                     }
                     fileChangeHandler.apply(filePath);

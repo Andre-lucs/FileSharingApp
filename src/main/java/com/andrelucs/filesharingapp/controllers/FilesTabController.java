@@ -119,12 +119,14 @@ public class FilesTabController {
         Task<List<FileItem>> task = new Task<>() {
             @Override
             protected List<FileItem> call() {
-                List<File> sharedFiles = FileSharingApplication.getSharedFiles();
-                sharedFiles.sort(comparator);
-                return sharedFiles.stream().map(file -> {
+                List<File> files = FileSharingApplication.getFiles();
+                List<String> sharedFiles = FileSharingApplication.getSharedFileNames();
+                files.sort(comparator);
+                return files.stream().map(file -> {
                     FileItem fileItem = new FileItem(file.getAbsoluteFile());
                     fileItem.setMaxWidth(200);
                     fileItem.addOnMouseClicked(ignoredEvent -> showFileInfo(file));
+                    fileItem.setShared(sharedFiles.contains(file.getName()));
                     return fileItem;
                 }).toList();
             }

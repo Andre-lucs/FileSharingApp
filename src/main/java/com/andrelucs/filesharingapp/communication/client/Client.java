@@ -53,6 +53,8 @@ public class Client implements Closeable, SearchEventListener {
         this.serverResponseHandler = new ServerResponseHandler(this);
         this.serverResponseHandler.addSearchResultListener(this);
         this.responseReadingThread = new Thread(this::readResponses);
+        this.responseReadingThread.setName("Response Reading");
+        this.responseReadingThread.setDaemon(true);
 
         for (File folder : initialFolders) {
             shareFolder(folder);
@@ -122,7 +124,7 @@ public class Client implements Closeable, SearchEventListener {
     }
 
     private void deleteAllFiles() {
-        boolean hasSharedFiles = folderTrackers.stream().anyMatch(tracker -> !tracker.getSharedFiles().isEmpty());
+        boolean hasSharedFiles = folderTrackers.stream().anyMatch(tracker -> !tracker.getTrackedFiles().isEmpty());
         if(hasSharedFiles){
             ExecutorService executorService = Executors.newFixedThreadPool(folderTrackers.size());
 
@@ -253,6 +255,8 @@ public class Client implements Closeable, SearchEventListener {
         if(this.fileTransferring == null && this.fileTransferringThread == null){
             this.fileTransferring = new FileTransferring(this, folder.toPath());
             this.fileTransferringThread = new Thread(fileTransferring);
+            this.fileTransferringThread.setDaemon(true);
+            this.fileTransferringThread.setName("FileTransferring Thread");
             if(isConnected) fileTransferringThread.start();
         }
         // if is connected then the user already started the client, so we can send the files
@@ -276,9 +280,14 @@ public class Client implements Closeable, SearchEventListener {
         return folderTrackers.getFirst();
     }
 
-    public List<File> getSharedFiles() {
+    public List<File> getTrackedFiles() {
         if(folderTrackers.isEmpty()) return new ArrayList<>();
-        return getFileTracker().getSharedFiles();
+        return getFileTracker().getTrackedFiles();
+    }
+
+    public List<String> getSharedFileNames() {
+        if(folderTrackers.isEmpty()) return new ArrayList<>();
+        return getFileTracker().getSharedFileNames();
     }
 
     public void addSearchResultListener(SearchEventListener listener) {
@@ -301,9 +310,8 @@ public class Client implements Closeable, SearchEventListener {
      * @param file
      */
     public void deleteFile(File file) {
-        getFileTracker().unTrackFile(file);
+        getFileTracker().unShareFile(file);
     }
-
 
     public boolean isBeingUploaded(File file) {
         return fileTransferring != null && fileTransferring.isBeingUploaded(file);

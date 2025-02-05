@@ -15,6 +15,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
+import javafx.scene.paint.Color;
 
 import java.awt.*;
 import java.io.File;
@@ -34,7 +35,9 @@ public class FileItem extends HBox implements Initializable {
     private File file;
     private ContextMenu contextMenu;
     private final List<MenuItem> menuItems;
-    private final List<EventHandler<? super  MouseEvent>> mouseEventHandlers;
+    private MenuItem shareUnshareItem;
+    private final List<EventHandler<? super MouseEvent>> mouseEventHandlers;
+    private boolean isBeingShared = false;
 
     public FileItem(String fileName) {
         this(new File(fileName));
@@ -60,6 +63,8 @@ public class FileItem extends HBox implements Initializable {
             }
         });
 
+        setupContextMenu();
+
     }
 
     public static String pickImage(File file) {
@@ -73,11 +78,12 @@ public class FileItem extends HBox implements Initializable {
     }
 
     private void rightButtonAction(MouseEvent mouseEvent) {
-        logger.info("Clicked set times: "+mouseEvent.getClickCount());
-        if(mouseEvent.getButton() == MouseButton.SECONDARY){
+        if (mouseEvent.getButton() == MouseButton.SECONDARY) {
             contextMenu.show(this, Side.BOTTOM, 0, 0);
+            updateShareMenuItemText();
         }
     }
+
 
     private void setIcon(String imagePath) {
         try (var icon = getClass().getResourceAsStream(imagePath)) {
@@ -92,7 +98,6 @@ public class FileItem extends HBox implements Initializable {
     public void initialize(URL location, ResourceBundle resources) {
         fileNameLabel.setText(file.getName());
         setIcon(pickImage(file));
-        setupContextMenu();
     }
 
     private void setupContextMenu() {
@@ -109,9 +114,13 @@ public class FileItem extends HBox implements Initializable {
         MenuItem deleteItem = new MenuItem("Delete");
         this.menuItems.add(deleteItem);
         deleteItem.setOnAction(event -> {
-            FileSharingApplication.unshareFile(file);
+            FileSharingApplication.stopTrackingFile(file);
             file.delete();
         });
+        MenuItem shareItem = new MenuItem("Unshare");
+        this.menuItems.add(shareItem);
+        shareItem.setOnAction(event -> toggleSharing());
+        this.shareUnshareItem = shareItem;
         addOnMouseClicked(this::rightButtonAction);
         this.contextMenu.getItems().addAll(menuItems);
     }
@@ -140,7 +149,44 @@ public class FileItem extends HBox implements Initializable {
         return file.getName();
     }
 
-    public void addOnMouseClicked(EventHandler<? super  MouseEvent> eventHandler) {
+    public void addOnMouseClicked(EventHandler<? super MouseEvent> eventHandler) {
         mouseEventHandlers.add(eventHandler);
     }
+
+    private void updateShareMenuItemText() {
+        if (isBeingShared) {
+            shareUnshareItem.setText("Unshare");
+        } else {
+            shareUnshareItem.setText("Share");
+        }
+    }
+
+    private void toggleSharing() {
+        if (isBeingShared) {
+            FileSharingApplication.unshareFile(file);
+            setShared(false);
+        } else {
+            FileSharingApplication.shareFile(file);
+            setShared(true);
+        }
+        updateShareMenuItemText();
+    }
+
+    public void setShared(boolean shared) {
+        if (shared) {
+            updateBackgroundColor(Color.WHITE);
+        } else {
+            updateBackgroundColor(Color.rgb(255, 80, 80));
+        }
+        this.isBeingShared = shared;
+    }
+
+    private void updateBackgroundColor(Color color) {
+        if (Platform.isFxApplicationThread()) {
+            this.setStyle("-fx-background-color: " + color.toString().replace("0x", "#") + ";");
+        } else {
+            Platform.runLater(() -> this.setStyle("-fx-background-color: " + color.toString().replace("0x", "#") + ";"));
+        }
+    }
+
 }

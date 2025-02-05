@@ -140,6 +140,7 @@ public class DownloadTabController implements Initializable, DownloadProgressLis
                 alert.showAndWait();
             }
         });
+        downloadThread.setDaemon(true);
         downloadThread.setName("Download Thread");
         return downloadThread;
     }

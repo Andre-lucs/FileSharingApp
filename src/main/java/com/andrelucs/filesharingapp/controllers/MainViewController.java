@@ -35,7 +35,7 @@ public class MainViewController {
             filesTabController = filesTabLoader.getController();
             filesTab.setOnSelectionChanged(event -> {
                 if (filesTab.isSelected()) {
-                    filesTabController.updateSharedFilesDisplay();
+                    updateFilesDisplay();
                 }
             });
 
@@ -82,8 +82,11 @@ public class MainViewController {
         }
     }
 
-
     public void updateFilesDisplay() {
         filesTabController.updateSharedFilesDisplay();
+    }
+
+    public FilesTabController getFilesTabController() {
+        return filesTabController;
     }
 }

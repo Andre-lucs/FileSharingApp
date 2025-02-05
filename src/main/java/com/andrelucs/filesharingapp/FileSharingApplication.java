@@ -24,11 +24,6 @@ public class FileSharingApplication extends Application {
     public static MainViewController mainViewController;
     private static String serverIpAddress = null;
 
-    public static boolean isBeingUploaded(File file) {
-        if (sharingClient == null) return false;
-        return sharingClient.isBeingUploaded(file);
-    }
-
     public static Client getClient() {
         System.out.println("getting client:" + sharingClient);
         return sharingClient;
@@ -41,7 +36,7 @@ public class FileSharingApplication extends Application {
 //        Application.setUserAgentStylesheet(new PrimerDark().getUserAgentStylesheet());
 //        Application.setUserAgentStylesheet(new PrimerLight().getUserAgentStylesheet());
         Application.setUserAgentStylesheet(new NordDark().getUserAgentStylesheet());
-        if (serverIpAddress ==null){
+        if (serverIpAddress == null) {
             ServerConnectionAlert serverConnectionAlert = new ServerConnectionAlert();
             serverIpAddress = serverConnectionAlert.requestServerIp();
             if (serverIpAddress == null) {
@@ -61,6 +56,10 @@ public class FileSharingApplication extends Application {
                 if (sharingClient != null) {
                     sharingClient.close();
                 }
+
+                if (mainViewController != null) {
+                    mainViewController.getFilesTabController().shutdownExecutorService();
+                }
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -75,6 +74,7 @@ public class FileSharingApplication extends Application {
         }
         return sharedFolder;
     }
+
     public static File changeSharedFolder() {
         File sharedFolder = FolderSelectionAlert.promptUserForFolder(mainStage);
         if (sharedFolder != null) {
@@ -87,7 +87,7 @@ public class FileSharingApplication extends Application {
         createClient(sharedFolder);
     }
 
-    private static void createClient(File sharedFolder) { // TODO Run this in the background and create a way to await it
+    private static void createClient(File sharedFolder) {
         try {
             if (sharingClient != null) {
                 sharingClient.close();
@@ -102,7 +102,7 @@ public class FileSharingApplication extends Application {
                     case FileAction.DOWNLOAD_COMPLETE -> "Finished downloading:";
                     default -> null;
                 };
-                if(message == null){
+                if (message == null) {
                     return;
                 }
 
@@ -138,9 +138,14 @@ public class FileSharingApplication extends Application {
         }
     }
 
-    public static List<File> getSharedFiles() {
+    public static List<File> getFiles() {
         if (sharingClient == null) return new ArrayList<>();
-        return sharingClient.getSharedFiles();
+        return sharingClient.getTrackedFiles();
+    }
+
+    public static List<String> getSharedFileNames() {
+        if (sharingClient == null) return new ArrayList<>();
+        return sharingClient.getSharedFileNames();
     }
 
     public static void showNotification(String action, String fileName, Icon icon) {
@@ -149,6 +154,10 @@ public class FileSharingApplication extends Application {
 
     public static void unshareFile(File file) {
         sharingClient.deleteFile(file);
+    }
+
+    public static void stopTrackingFile(File file) {
+        sharingClient.getFileTracker().stopTrackingFile(file);
     }
 
     public static void shareFile(File file) {
