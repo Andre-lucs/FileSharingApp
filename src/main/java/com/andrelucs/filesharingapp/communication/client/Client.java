@@ -128,7 +128,7 @@ public class Client implements Closeable, SearchEventListener {
 
     // Requests
     public void sendJoinRequest() {
-        writer.println(JOIN.format(socket.getInetAddress().getHostAddress()));
+        writer.println(JOIN.format(socket.getLocalAddress().getHostAddress()));
     }
 
     public void sendCreateFileRequest(String fileName, long fileSize) {
