@@ -16,7 +16,7 @@ import javafx.scene.control.*;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
-import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.TilePane;
 import javafx.scene.shape.Rectangle;
 import org.jetbrains.annotations.NotNull;
@@ -30,7 +30,6 @@ import java.util.stream.Collectors;
 public class DownloadTabController implements Initializable, DownloadProgressListener {
     private static final int MAX_FILES_PER_PAGE = 30;
     private static final long UPDATE_INTERVAL_MS = 50; // Update interval in milliseconds
-    private long lastUpdateTime = 0;
 
     @FXML
     Label fileNameLabel;
@@ -43,7 +42,7 @@ public class DownloadTabController implements Initializable, DownloadProgressLis
     @FXML
     private Pagination searchPagination;
     @FXML
-    private HBox downloadProgressBar;
+    private Pane downloadProgressBar;
 
     private Client client;
     private FileInfo selectedFile;
@@ -55,7 +54,11 @@ public class DownloadTabController implements Initializable, DownloadProgressLis
     private final FileItem[] fileItems;
     private boolean updatingPage;
     private boolean updateAgain;
+    //Variables to handle download progress
     private final Map<String, Rectangle> progressRectangles = new HashMap<>();
+    private final Map<String, Float> clientProgressMap = new HashMap<>();
+    private long lastUpdateTime = 0;
+    //---
 
     public DownloadTabController() {
         fileItems = new FileItem[MAX_FILES_PER_PAGE];
@@ -112,8 +115,8 @@ public class DownloadTabController implements Initializable, DownloadProgressLis
             Rectangle rectangle = new Rectangle(0, 20);
             rectangle.setStyle("-fx-fill: #0088bb");
             double maxWidth = downloadProgressBar.getWidth();
-            rectangle.setX(i * maxWidth / selectedFileOwners.size());
             progressRectangles.put(owner, rectangle);
+            rectangle.setX(i * maxWidth / selectedFileOwners.size());
 
         }
         downloadProgressBar.getChildren().addAll(progressRectangles.values());
@@ -214,14 +217,23 @@ public class DownloadTabController implements Initializable, DownloadProgressLis
     @Override
     public void onProgressUpdate(FileInfo fileInfo, float progress) {
         if (!Objects.equals(fileInfo.name(), selectedFile.name())) return;
+        clientProgressMap.put(fileInfo.owner(), progress);
+
+        float totalProgress = 0;
+        for (float clientProgress : clientProgressMap.values()) {
+            totalProgress += clientProgress;
+        }
+        float overallProgress = totalProgress / clientProgressMap.size();
+
         Rectangle rect = progressRectangles.get(fileInfo.owner());
         if (rect == null) return;
         double maxWidth = downloadProgressBar.getWidth();
-        double finalWidth = maxWidth * progress / 100;
+        double finalWidth = maxWidth * overallProgress / 100;
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastUpdateTime >= UPDATE_INTERVAL_MS
                 || finalWidth - rect.getWidth() > 2
-                || finalWidth == maxWidth) {
+                || finalWidth == maxWidth
+                || overallProgress % 1 == 0) {
             lastUpdateTime = currentTime;
             rect.setWidth(finalWidth);
         }
