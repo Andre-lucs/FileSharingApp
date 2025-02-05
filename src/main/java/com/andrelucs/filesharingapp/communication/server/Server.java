@@ -8,6 +8,7 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.regex.Pattern;
 
 public class Server {
 
@@ -77,11 +78,10 @@ public class Server {
 
     public List<FileInfo> searchFile(String filePattern) {
         List<FileInfo> files = new ArrayList<>();
-        if (filePattern.equals("*")) {
-            files.addAll(clientFiles);
-        } else {
-            clientFiles.stream().filter(file -> file.name().toLowerCase().contains(filePattern.toLowerCase())).forEach(files::add);
-        }
+        Pattern pattern = Pattern.compile(filePattern, Pattern.CASE_INSENSITIVE);
+
+        clientFiles.stream().filter(file -> pattern.matcher(file.name()).find()).forEach(files::add);
+
         return files;
     }
 
