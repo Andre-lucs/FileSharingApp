@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.prefs.Preferences;
 
 public class FilesTabController {
@@ -43,6 +44,7 @@ public class FilesTabController {
     private File displayedFile;
 
     private ExecutorService updateSharedFilesDisplayExecutor;
+    private Future<?> currentUpdateFilesDisplay;
 
     @FXML
     public void initialize() {
@@ -132,8 +134,11 @@ public class FilesTabController {
                 filesDisplayContainer.getChildren().setAll(getValue());
             }
         };
+        if(currentUpdateFilesDisplay != null && !currentUpdateFilesDisplay.isDone()){
+            currentUpdateFilesDisplay.cancel(true);
+        }
 
-        updateSharedFilesDisplayExecutor.submit(task);
+        this.currentUpdateFilesDisplay = updateSharedFilesDisplayExecutor.submit(task);
     }
 
     @FXML
@@ -172,6 +177,12 @@ public class FilesTabController {
     private void resizeImage(double dividerPosition) {
         fileIcon.setFitWidth((1 - dividerPosition) * splitPane.getWidth() - 20);
         fileIcon.setFitHeight((1 - dividerPosition) * splitPane.getHeight() - 20);
+    }
+
+    public void shutdownExecutorService() {
+        if (updateSharedFilesDisplayExecutor != null) {
+            updateSharedFilesDisplayExecutor.shutdownNow();
+        }
     }
 
 }
