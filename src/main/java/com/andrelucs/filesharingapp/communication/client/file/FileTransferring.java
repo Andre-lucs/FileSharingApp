@@ -114,6 +114,7 @@ public class FileTransferring implements Runnable, Closeable {
                 }
             } finally {
                 filesBeingUploaded.remove(requestedFile.getName());
+                FileShareTracker.getInstance().incrementShareCount(requestedFile.getName());
             }
 
         } catch (IOException e) {

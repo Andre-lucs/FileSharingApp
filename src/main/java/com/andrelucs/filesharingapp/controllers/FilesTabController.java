@@ -1,6 +1,7 @@
 package com.andrelucs.filesharingapp.controllers;
 
 import com.andrelucs.filesharingapp.FileSharingApplication;
+import com.andrelucs.filesharingapp.communication.client.file.FileShareTracker;
 import com.andrelucs.filesharingapp.components.FileItem;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
@@ -34,16 +35,15 @@ public class FilesTabController {
     @FXML
     ImageView fileIcon;
     @FXML
-    HBox uploadingOverlay;
-    @FXML
     SplitPane splitPane;
+    @FXML
+    private Label downloadCountLabel;
 
     private File displayedFile;
 
     @FXML
     public void initialize() {
         sortComboBox.setOnAction(event -> updateSharedFilesDisplay());
-        uploadingOverlay.setVisible(false);
         splitPane.setDividerPosition(0, 1);
         // Scale the image display
         splitPane.getDividers().getFirst().positionProperty().addListener((observable, oldValue, newValue) -> {
@@ -74,6 +74,8 @@ public class FilesTabController {
     public void showFileInfo(File file) {
         displayedFile = file;
         splitPane.setDividerPosition(0, 0.5);
+        int sharedCount = FileShareTracker.getInstance().getShareCount(file.getName());
+        downloadCountLabel.setText("Shared: " + sharedCount + " times.");
 
         if (isImage(file)) {
             displayImage(file);
@@ -92,8 +94,6 @@ public class FilesTabController {
         } else {
             fileSizeLabel.setText(size + " bytes");
         }
-
-        uploadingOverlay.setVisible(FileSharingApplication.isBeingUploaded(file));
     }
 
     public void updateSharedFilesDisplay() {

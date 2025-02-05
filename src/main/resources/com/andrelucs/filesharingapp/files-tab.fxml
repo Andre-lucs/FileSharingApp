@@ -94,26 +94,12 @@
                                  <Label fx:id="fileSizeLabel" text="23 kb" />
                               </children>
                            </HBox>
-                           <Label text="This file was downloaded 5 times" />
+                           <Label fx:id="downloadCountLabel" text="This file was downloaded 5 times" />
                         </children>
                         <padding>
                            <Insets bottom="30.0" left="30.0" right="30.0" top="30.0" />
                         </padding>
                      </VBox>
-                     <HBox fx:id="uploadingOverlay" alignment="CENTER_RIGHT" prefHeight="39.0" prefWidth="111.0" spacing="10.0" AnchorPane.bottomAnchor="10.0" AnchorPane.rightAnchor="10.0">
-                        <children>
-                           <Label text="Uploading">
-                              <font>
-                                 <Font name="System Bold" size="12.0" />
-                              </font>
-                           </Label>
-                           <ImageView fitHeight="30.0" fitWidth="30.0" pickOnBounds="true" preserveRatio="true">
-                              <image>
-                                 <Image url="@../../../icons/upload-48-white.png" />
-                              </image>
-                           </ImageView>
-                        </children>
-                     </HBox>
                       </children>
                   </AnchorPane>
               </items>
