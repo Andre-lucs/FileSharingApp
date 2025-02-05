@@ -11,7 +11,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.SplitPane;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.TilePane;
 
 import java.io.File;
@@ -118,7 +117,7 @@ public class FilesTabController {
                 return sharedFiles.stream().map(file -> {
                     FileItem fileItem = new FileItem(file.getAbsoluteFile());
                     fileItem.setMaxWidth(200);
-                    fileItem.setOnMouseClicked(event -> showFileInfo(file));
+                    fileItem.addOnMouseClicked(ignoredEvent -> showFileInfo(file));
                     return fileItem;
                 }).toList();
             }
