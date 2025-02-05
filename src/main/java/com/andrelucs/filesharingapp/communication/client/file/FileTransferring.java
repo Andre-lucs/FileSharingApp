@@ -25,7 +25,6 @@ public class FileTransferring implements Runnable, Closeable {
     private final ServerSocket serverSocket;
     private final Client client;
     private final Path downloadFolder;
-    private final ExecutorService downloadExecutorService;
 
     private final List<String> filesBeingUploaded = new ArrayList<>();
     private final List<String> filesBeingDownloaded = new ArrayList<>();
@@ -37,7 +36,6 @@ public class FileTransferring implements Runnable, Closeable {
         this.serverSocket = new ServerSocket(FILE_TRANSFER_PORT);
         this.client = client;
         this.downloadFolder = downloadFolder;
-        this.downloadExecutorService = Executors.newFixedThreadPool(10);
     }
 
     @Override
@@ -134,7 +132,7 @@ public class FileTransferring implements Runnable, Closeable {
         traficListeners.forEach(listener -> listener.onFileAction(FileAction.DOWNLOAD, fileInfo));
         var uniqueFileName = (Files.exists(downloadFolder.resolve(fileInfo.name())) ? UUID.randomUUID().toString().substring(0, 5) : "") + fileInfo.name();
         var newFile = downloadFolder.resolve(uniqueFileName).toFile();
-        List<Future<File>> futureTempFiles = new ArrayList<>();
+        List<CompletableFuture<File>> futureList = new ArrayList<>();
         List<String> ownerList = new ArrayList<>(owners);
         final long bytesPerOwner = fileInfo.size() / ownerList.size();
         long remainingBytes = fileInfo.size() % ownerList.size();
@@ -142,22 +140,30 @@ public class FileTransferring implements Runnable, Closeable {
             String owner = (String) ownerList.toArray()[i];
             long startByte = i * bytesPerOwner;
             long endByte = (i + 1) * bytesPerOwner + (i == ownerList.size() - 1 ? remainingBytes : 0);
-            futureTempFiles.add(asyncDownloadFileBytes(fileInfo.name(), owner, startByte, endByte, (totalBytes) -> {
-                downloadProgress.put(fileInfo.name(), (float) totalBytes / fileInfo.size() * 100);
-                traficListeners.forEach(listener -> listener.onFileAction(FileAction.DOWNLOAD_PROGRESS, fileInfo));
-                return null;
+            futureList.add(CompletableFuture.supplyAsync(() -> {
+                try {
+                    return downloadFileBytes(fileInfo.name(), owner, startByte, endByte, (totalBytes) -> {
+                        downloadProgress.put(fileInfo.name(), (float) totalBytes / fileInfo.size() * 100);
+                        traficListeners.forEach(listener -> listener.onFileAction(FileAction.DOWNLOAD_PROGRESS, new FileInfo(fileInfo.name(), owner, totalBytes)));
+                        return null;
+                    });
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
             }));
         }
-        if (futureTempFiles.size() == 1) {
+
+        CompletableFuture.allOf(futureList.toArray(CompletableFuture[]::new)).join();
+        if (futureList.size() == 1) {
             try {
-                File tempFile = futureTempFiles.getFirst().get();
+                File tempFile = futureList.getFirst().get();
                 Files.move(tempFile.toPath(), newFile.toPath());
             } catch (InterruptedException | ExecutionException | IOException e) {
                 throw new RuntimeException(e);
             }
         } else {
             try (FileOutputStream fileOutputStream = new FileOutputStream(newFile)) {
-                for (Future<File> futureTempFile : futureTempFiles) {
+                for (CompletableFuture<File> futureTempFile : futureList) {
                     try {
                         File tempFile = futureTempFile.get();
                         try (FileInputStream fileInputStream = new FileInputStream(tempFile)) {
@@ -182,10 +188,6 @@ public class FileTransferring implements Runnable, Closeable {
         downloadProgress.remove(fileInfo.name());
         traficListeners.forEach(listener -> listener.onFileAction(FileAction.DOWNLOAD_COMPLETE, fileInfo));
         return newFile;
-    }
-
-    private @NotNull Future<File> asyncDownloadFileBytes(String fileName, String owner, long startByte, long endByte, Function<Long, Void> progressTracker) {
-        return downloadExecutorService.submit(() -> downloadFileBytes(fileName, owner, startByte, endByte, progressTracker));
     }
 
     /**
@@ -261,15 +263,6 @@ public class FileTransferring implements Runnable, Closeable {
     @Override
     public void close() throws IOException {
         serverSocket.close();
-        downloadExecutorService.shutdown();
-        try {
-            if (!downloadExecutorService.awaitTermination(60, TimeUnit.SECONDS)) {
-                downloadExecutorService.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            logger.log(Level.SEVERE, "Error shutting down executor service", e);
-            downloadExecutorService.shutdown();
-        }
     }
 
     public boolean isBeingUploaded(File file) {
