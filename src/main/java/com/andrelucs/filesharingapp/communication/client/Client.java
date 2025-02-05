@@ -106,15 +106,7 @@ public class Client implements Closeable, SearchEventListener {
 
     @Override
     public void close() throws IOException {
-        ExecutorService executorService = Executors.newFixedThreadPool(folderTrackers.size());
-
-        // Run all deleteAllFiles asynchronously using the custom ExecutorService
-        CompletableFuture<Void> completableFutures = CompletableFuture.allOf(folderTrackers.stream()
-                .map(tracker -> CompletableFuture.runAsync(tracker::deleteAllFiles, executorService))
-                .toArray(CompletableFuture[]::new));
-        completableFutures.join();
-
-        executorService.shutdown();
+        deleteAllFiles();
 
         writer.println(LEAVE.format());
         waitDisconnection();
@@ -124,6 +116,21 @@ public class Client implements Closeable, SearchEventListener {
         socket.close();
         if(fileTransferringThread != null) fileTransferringThread.interrupt();
         responseReadingThread.interrupt();
+    }
+
+    private void deleteAllFiles() {
+        boolean hasSharedFiles = folderTrackers.stream().anyMatch(tracker -> !tracker.getSharedFiles().isEmpty());
+        if(hasSharedFiles){
+            ExecutorService executorService = Executors.newFixedThreadPool(folderTrackers.size());
+
+            // Run all deleteAllFiles asynchronously using the custom ExecutorService
+            CompletableFuture<Void> completableFutures = CompletableFuture.allOf(folderTrackers.stream()
+                    .map(tracker -> CompletableFuture.runAsync(tracker::deleteAllFiles, executorService))
+                    .toArray(CompletableFuture[]::new));
+            completableFutures.join();
+
+            executorService.shutdown();
+        }
     }
 
     // Requests
