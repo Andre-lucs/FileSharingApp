@@ -326,7 +326,8 @@ public class Client implements Closeable, SearchEventListener {
         return fileTransferring;
     }
 
-    public void addDownloadProgressListener(DownloadProgressListener listener) {
+    public void addDownloadProgressListener(DownloadProgressListener listener) throws IllegalStateException {
+        if(fileTransferring == null) throw new IllegalStateException("FileTransferring not initialized");
         fileTransferring.addDownloadProgressListener(listener);
     }
 }

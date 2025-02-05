@@ -88,7 +88,11 @@ public class DownloadTabController implements Initializable, DownloadProgressLis
         }
         client = newClient;
         assert client != null;
-        client.addDownloadProgressListener(this);
+        try {
+            client.addDownloadProgressListener(this);
+        } catch (IllegalStateException e) {
+            System.out.println("Error adding download progress listener");
+        }
     }
 
     @FXML

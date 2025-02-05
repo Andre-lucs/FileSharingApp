@@ -86,7 +86,9 @@ public class FileTracker {
     public void confirmUnsharedFile(String fileName) {
         files.remove(fileName);
         sharedFiles.remove(fileName);
-        deletionLatch.countDown();
+        if(deletionLatch != null){
+            deletionLatch.countDown();
+        }
     }
 
     public void waitAllFilesDeletion() {
