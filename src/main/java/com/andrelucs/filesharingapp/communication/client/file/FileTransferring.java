@@ -255,7 +255,6 @@ public class FileTransferring implements Runnable, Closeable {
 
         } catch (IOException e) {
             logger.log(Level.SEVERE, "Error downloading file bytes", e);
-            traficListeners.forEach(listener -> listener.onFileAction(FileAction.DOWNLOAD, new FileInfo(fileName, owner, endByte - startByte)));
             throw new RuntimeException(e);
         }
     }

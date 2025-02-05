@@ -2,26 +2,40 @@ package com.andrelucs.filesharingapp.communication.client.file;
 
 import com.andrelucs.filesharingapp.communication.client.Client;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.function.Function;
 
-public class FileTracker {
+public class FileTracker implements Closeable {
 
-    private final Map<String, File> files = new HashMap<>();
-    protected final List<String> sharedFiles = new ArrayList<>();
+    private final Map<String, File> files;
+    protected final List<String> sharedFiles;
     private final Client client;
+    private final Path sharedFolder;
 
     private CountDownLatch deletionLatch;
 
-    public FileTracker(Client client, Path sharedFolder) {
+    private final WatchService watchService;
+    private final ExecutorService watchServiceExecutor;
+    private Function<Path, Void> fileChangeHandler = path -> null;
+
+    public FileTracker(Client client, Path sharedFolder) throws IOException {
+        this.files = new HashMap<>();
+        this.sharedFiles = new ArrayList<>();
         this.client = client;
+        this.sharedFolder = sharedFolder;
+        this.watchService = FileSystems.getDefault().newWatchService();
+        this.watchServiceExecutor = Executors.newSingleThreadExecutor();
+
         // Share all files in the shared folder
 
         if (!Files.isDirectory(sharedFolder)) {
@@ -32,6 +46,16 @@ public class FileTracker {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+
+        sharedFolder.register(
+                watchService,
+                StandardWatchEventKinds.ENTRY_CREATE,
+                StandardWatchEventKinds.ENTRY_DELETE,
+                StandardWatchEventKinds.ENTRY_MODIFY
+        );
+
+        watchServiceExecutor.submit(this::processWatchEvents);
+
     }
 
     /**
@@ -41,9 +65,7 @@ public class FileTracker {
      * @return true if the file was successfully shared, false if the file is a directory or is an empty file.
      */
     public boolean shareFile(File file) {
-        if (file.isDirectory()) return false;
-        if (file.length() == 0) return false;
-        files.put(file.getName(), file);
+        if (!shareFileLater(file)) return false;
         client.sendCreateFileRequest(file.getName(), file.length());
         return true;
     }
@@ -57,6 +79,7 @@ public class FileTracker {
     public boolean shareFileLater(File file) {
         if (file.isDirectory()) return false;
         if (file.length() == 0) return false;
+        System.out.println("Sharing file: " + file.getName() + file);
         files.put(file.getName(), file);
         return true;
     }
@@ -74,9 +97,7 @@ public class FileTracker {
      * For example files that were prepared for sharing using the shareFileLater method.
      */
     public void sendPendingFiles() {
-        files.forEach((fileName, file) -> {
-            client.sendCreateFileRequest(fileName, file.length());
-        });
+        files.forEach((fileName, file) -> client.sendCreateFileRequest(fileName, file.length()));
     }
 
     public void confirmFileSharing(String fileName) {
@@ -84,9 +105,8 @@ public class FileTracker {
     }
 
     public void confirmUnsharedFile(String fileName) {
-        files.remove(fileName);
         sharedFiles.remove(fileName);
-        if(deletionLatch != null){
+        if (deletionLatch != null) {
             deletionLatch.countDown();
         }
     }
@@ -111,11 +131,45 @@ public class FileTracker {
         return new ArrayList<>(files.values());
     }
 
-    public void deleteFile(File file) {
+    public void unTrackFile(File file) {
         files.remove(file.getName());
         sharedFiles.remove(file.getName());
         client.sendDeleteFileRequest(file.getName());
-        file.delete();
     }
 
+    private void processWatchEvents() {
+        try {
+            while (true) {
+                WatchKey key = watchService.take();
+                for (WatchEvent<?> event : key.pollEvents()) {
+                    WatchEvent.Kind<?> kind = event.kind();
+                    Path filePath = sharedFolder.resolve((Path) event.context());
+
+                    if (kind == StandardWatchEventKinds.ENTRY_CREATE) {
+                        shareFile(filePath.toFile());
+                    } else if (kind == StandardWatchEventKinds.ENTRY_DELETE) {
+                        unTrackFile(filePath.toFile());
+                    } else if (kind == StandardWatchEventKinds.ENTRY_MODIFY) {
+                        unTrackFile(filePath.toFile());
+                        shareFile(filePath.toFile());
+                    }
+                    fileChangeHandler.apply(filePath);
+                }
+                key.reset();
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+
+    @Override
+    public void close() throws IOException {
+        watchService.close();
+        watchServiceExecutor.shutdown();
+    }
+
+    public void setFileChangeHandler(Function<Path, Void> fileChangeHandler) {
+        this.fileChangeHandler = fileChangeHandler;
+    }
 }

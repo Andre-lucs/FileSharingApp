@@ -108,6 +108,10 @@ public class FileSharingApplication extends Application {
 
                 showNotification(message, fileInfo.name(), icon);
             });
+            sharingClient.getFileTracker().setFileChangeHandler(path -> {
+                mainViewController.updateFilesDisplay();
+                return null;
+            });
             sharingClient.start();
         } catch (IOException e) {
             throw new RuntimeException(e);

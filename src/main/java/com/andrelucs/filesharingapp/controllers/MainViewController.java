@@ -24,6 +24,7 @@ public class MainViewController {
     private Pane notificationOverlay;
 
     private final List<NotificationItem> notifications = new ArrayList<>();
+    private FilesTabController filesTabController;
 
     @FXML
     public void initialize() {
@@ -31,7 +32,7 @@ public class MainViewController {
         FXMLLoader filesTabLoader = new FXMLLoader(getClass().getResource("/com/andrelucs/filesharingapp/files-tab.fxml"));
         try {
             filesTab.setContent(filesTabLoader.load());
-            FilesTabController filesTabController = filesTabLoader.getController();
+            filesTabController = filesTabLoader.getController();
             filesTab.setOnSelectionChanged(event -> {
                 if (filesTab.isSelected()) {
                     filesTabController.updateSharedFilesDisplay();
@@ -82,4 +83,7 @@ public class MainViewController {
     }
 
 
+    public void updateFilesDisplay() {
+        filesTabController.updateSharedFilesDisplay();
+    }
 }

@@ -111,6 +111,9 @@ public class Client implements Closeable, SearchEventListener {
         writer.println(LEAVE.format());
         waitDisconnection();
         if(fileTransferring != null) fileTransferring.close();
+        for(var tracker : folderTrackers){
+            tracker.close();
+        }
         writer.close();
         reader.close();
         socket.close();
@@ -214,10 +217,6 @@ public class Client implements Closeable, SearchEventListener {
         }
     }
 
-    public void shareFile(File file) {
-        getFileTracker().shareFile(file);
-    }
-
     private void readResponses() {
         try {
             String response;
@@ -289,8 +288,20 @@ public class Client implements Closeable, SearchEventListener {
         serverResponseHandler.removeSearchResultListener(listener);
     }
 
+    /**
+     * Shares a file with the network
+     * @param file
+     */
+    public void shareFile(File file) {
+        getFileTracker().shareFile(file);
+    }
+
+    /**
+     * Stops sharing a file that was previously shared
+     * @param file
+     */
     public void deleteFile(File file) {
-        getFileTracker().deleteFile(file);
+        getFileTracker().unTrackFile(file);
     }
 
 

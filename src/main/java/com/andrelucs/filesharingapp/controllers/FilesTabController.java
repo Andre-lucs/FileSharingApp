@@ -17,6 +17,8 @@ import java.io.File;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.prefs.Preferences;
 
 public class FilesTabController {
@@ -40,8 +42,11 @@ public class FilesTabController {
 
     private File displayedFile;
 
+    private ExecutorService updateSharedFilesDisplayExecutor;
+
     @FXML
     public void initialize() {
+        updateSharedFilesDisplayExecutor = Executors.newSingleThreadExecutor();
         sortComboBox.setOnAction(event -> updateSharedFilesDisplay());
         splitPane.setDividerPosition(0, 1);
         // Scale the image display
@@ -127,7 +132,8 @@ public class FilesTabController {
                 filesDisplayContainer.getChildren().setAll(getValue());
             }
         };
-        new Thread(task).start();
+
+        updateSharedFilesDisplayExecutor.submit(task);
     }
 
     @FXML
