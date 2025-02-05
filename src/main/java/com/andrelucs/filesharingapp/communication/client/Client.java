@@ -207,7 +207,7 @@ public class Client implements Closeable, SearchEventListener {
         }
     }
 
-    private void shareFile(File file) {
+    public void shareFile(File file) {
         getFileTracker().shareFile(file);
     }
 

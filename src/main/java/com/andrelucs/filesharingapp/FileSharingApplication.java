@@ -143,6 +143,14 @@ public class FileSharingApplication extends Application {
         mainViewController.showNotification(action, fileName, icon.getPath());
     }
 
+    public static void unshareFile(File file) {
+        sharingClient.deleteFile(file);
+    }
+
+    public static void shareFile(File file) {
+        sharingClient.shareFile(file);
+    }
+
     public static void main(String[] args) {
         launch(args);
     }
