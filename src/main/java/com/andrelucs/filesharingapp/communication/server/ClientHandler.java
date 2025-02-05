@@ -24,7 +24,7 @@ public class ClientHandler implements Runnable {
         this.clientSocket = clientSocket;
         this.server = server;
         try {
-            reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+            reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream(), StandardCharsets.UTF_8));
             writer = new PrintWriter(clientSocket.getOutputStream(), true);
         } catch (Exception e) {
             e.printStackTrace();

@@ -48,7 +48,7 @@ public class Client implements Closeable, SearchEventListener {
     public Client(String serverIp, List<File> initialFolders) throws IOException {
         this.socket = new Socket(serverIp, SERVER_CONNECTION_PORT);
         this.writer = new PrintWriter(socket.getOutputStream(), true);
-        this.reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        this.reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
 
         this.serverResponseHandler = new ServerResponseHandler(this);
         this.serverResponseHandler.addSearchResultListener(this);
