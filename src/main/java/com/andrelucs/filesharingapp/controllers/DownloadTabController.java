@@ -131,7 +131,7 @@ public class DownloadTabController implements Initializable, DownloadProgressLis
     private @NotNull Thread getDownloadThread(Set<String> selectedFileOwners) {
         Thread downloadThread = new Thread(() -> {
             try {
-                client.downloadFileFromOwners(selectedFile.name(), selectedFileOwners, selectedFile.size());
+                client.downloadFileFromOwners(selectedFile.name(), selectedFileOwners);
             } catch (IllegalStateException e) {
                 Alert alert = new Alert(Alert.AlertType.ERROR);
                 alert.setTitle("Error");

@@ -17,7 +17,7 @@ import java.io.File;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.prefs.Preferences;
@@ -43,12 +43,13 @@ public class FilesTabController {
 
     private File displayedFile;
 
-    private ExecutorService updateSharedFilesDisplayExecutor;
+    private ScheduledExecutorService updateSharedFilesDisplayExecutor;
     private Future<?> currentUpdateFilesDisplay;
 
     @FXML
     public void initialize() {
-        updateSharedFilesDisplayExecutor = Executors.newSingleThreadExecutor();
+        updateSharedFilesDisplayExecutor = Executors.newSingleThreadScheduledExecutor();
+        updateSharedFilesDisplayExecutor.scheduleWithFixedDelay(this::updateSharedFilesDisplay, 0, 5, java.util.concurrent.TimeUnit.SECONDS);
         sortComboBox.setOnAction(event -> updateSharedFilesDisplay());
         splitPane.setDividerPosition(0, 1);
         // Scale the image display

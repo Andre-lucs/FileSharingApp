@@ -10,9 +10,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 import java.util.function.Function;
 
 public class FileTracker implements Closeable {
@@ -61,13 +59,11 @@ public class FileTracker implements Closeable {
     /**
      * Shares a file by adding it to the local tracking maps and sending a create file request to the server.
      * This method immediately initiates the sharing process for the specified file.
-     *
-     * @return true if the file was successfully shared, false if the file is a directory or is an empty file.
      */
-    public boolean shareFile(File file) {
-        if (!shareFileLater(file)) return false;
+    public void shareFile(File file) {
+//        if (!shareFileLater(file)) return;
+        files.put(file.getName(), file);
         client.sendCreateFileRequest(file.getName(), file.length());
-        return true;
     }
 
     /**
@@ -89,7 +85,6 @@ public class FileTracker implements Closeable {
         deletionLatch = new CountDownLatch(fileCount);
         List<String> fileNames = new ArrayList<>(files.keySet());
         fileNames.forEach(client::sendDeleteFileRequest);
-        waitAllFilesDeletion();
     }
 
     /**
@@ -102,6 +97,7 @@ public class FileTracker implements Closeable {
 
     public void confirmFileSharing(String fileName) {
         sharedFiles.add(fileName);
+        fileChangeHandler.apply(sharedFolder.resolve(fileName));
     }
 
     public void confirmUnsharedFile(String fileName) {
@@ -109,6 +105,7 @@ public class FileTracker implements Closeable {
         if (deletionLatch != null) {
             deletionLatch.countDown();
         }
+        fileChangeHandler.apply(sharedFolder.resolve(fileName));
     }
 
     public void waitAllFilesDeletion() {

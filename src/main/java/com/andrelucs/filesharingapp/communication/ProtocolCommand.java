@@ -91,7 +91,7 @@ public enum ProtocolCommand {
         try {
             return ProtocolCommand.valueOf(command);
         } catch (IllegalArgumentException e) {
-            throw new RuntimeException(e);
+            return null;
         }
     }
 }

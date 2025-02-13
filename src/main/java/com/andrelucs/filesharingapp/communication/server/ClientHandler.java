@@ -5,10 +5,9 @@ import com.andrelucs.filesharingapp.communication.ProtocolCommand;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.Socket;
-import java.net.URL;
-import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
@@ -25,7 +24,7 @@ public class ClientHandler implements Runnable {
         this.server = server;
         try {
             reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream(), StandardCharsets.UTF_8));
-            writer = new PrintWriter(clientSocket.getOutputStream(), true);
+            writer = new PrintWriter(new OutputStreamWriter(clientSocket.getOutputStream(), StandardCharsets.UTF_8), true);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -93,8 +92,9 @@ public class ClientHandler implements Runnable {
     private void fileSearchRequest(String[] args) {
         String fileName = Arrays.stream(args).reduce((a, b) -> a + b).orElse("");
         var files = server.searchFile(fileName);
+        String ip = clientIp();
         System.out.println(files);
-        files.forEach(fileInfo -> writer.println(FILE.format(fileInfo.name(), fileInfo.owner(), fileInfo.size())));
+        files.stream().forEach(fileInfo -> writer.println(FILE.format(fileInfo.name(), fileInfo.owner(), fileInfo.size())));
     }
 
     private void leaveRequest() {

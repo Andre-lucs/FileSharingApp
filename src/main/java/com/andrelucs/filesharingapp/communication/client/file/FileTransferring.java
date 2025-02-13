@@ -5,18 +5,17 @@ import com.andrelucs.filesharingapp.communication.ProtocolCommand;
 import com.andrelucs.filesharingapp.communication.client.Client;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.*; //TODO usar java.nio em vez do java.io padrao
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Function;
 import java.util.logging.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class FileTransferring implements Runnable, Closeable {
     private static final int FILE_TRANSFER_PORT = 1235;
@@ -66,22 +65,10 @@ public class FileTransferring implements Runnable, Closeable {
             }
             String[] parts = getRequest.split(" ");
 
-            File requestedFile = client.getFile(Client.decodeFileName(parts[1]));
+            String fileName = getRequest.trim().substring(getRequest.indexOf(" ") + 1, getRequest.lastIndexOf(" "));
+            File requestedFile = client.getFile(fileName);
             if (requestedFile == null || !requestedFile.exists() || !requestedFile.canRead()) {
-                String fileName = parts[1];
-                for (int i = 0; i < parts.length; i++) {
-                    if (parts[i].contains(".")) {
-                        fileName = Stream.of(parts).skip(1).limit(i).collect(Collectors.joining(" "));
-                        break;
-                    }
-                }
-                if(fileName.equals(parts[1])) {
-                    return;
-                }
-                requestedFile = client.getFile(fileName);
-                if(requestedFile == null || !requestedFile.exists() || !requestedFile.canRead()) {
-                    return;
-                }
+                return;
             }
             String[] range = parts[parts.length-1].split("-");
             long startByte = Integer.parseInt(range[0]);
@@ -213,8 +200,7 @@ public class FileTransferring implements Runnable, Closeable {
         File file = getBytes(fileName, owner, startByte, endByte, progressTracker);
         if (file.length() == 0) {
             file.delete();
-            String encodedFileName = Client.encodeFileName(fileName);
-            file = getBytes(encodedFileName, owner, startByte, endByte, progressTracker);
+            file = getBytes(fileName, owner, startByte, endByte, progressTracker);
             if (file.length() == 0) {
                 logger.log(Level.SEVERE, "Error downloading file bytes for both encoded and uncoded name: " + fileName);
                 throw new IOException("Error downloading file bytes for encoded name: " + fileName);
@@ -229,7 +215,7 @@ public class FileTransferring implements Runnable, Closeable {
 
         try (
                 Socket socket = new Socket(owner, FILE_TRANSFER_PORT);
-                PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
+                PrintWriter writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
                 DataInputStream dataInputStream = new DataInputStream(socket.getInputStream());
                 FileOutputStream fileOutputStream = new FileOutputStream(tempFile)
         ) {

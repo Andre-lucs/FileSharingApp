@@ -16,8 +16,12 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.logging.Logger;
 
 public class FileSharingApplication extends Application {
+    private static final Logger LOGGER = Logger.getLogger(FileSharingApplication.class.getName());
 
     public static Stage mainStage;
     public static Client sharingClient;
@@ -25,7 +29,6 @@ public class FileSharingApplication extends Application {
     private static String serverIpAddress = null;
 
     public static Client getClient() {
-        System.out.println("getting client:" + sharingClient);
         return sharingClient;
     }
 
@@ -52,16 +55,28 @@ public class FileSharingApplication extends Application {
         primaryStage.setScene(mainScene);
         primaryStage.show();
         primaryStage.setOnCloseRequest(event -> {
-            try {
-                if (sharingClient != null) {
-                    sharingClient.close();
+            if (sharingClient != null) {
+                try {
+                    CompletableFuture.supplyAsync(() -> {
+                        try {
+                            sharingClient.close();
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                        return null;
+                    }).orTimeout(5000, java.util.concurrent.TimeUnit.MILLISECONDS).join();
+                } catch (CompletionException ignored) {
+                    LOGGER.warning("Failed to close the client");
+                    try {
+                        sharingClient.shutdown();
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
                 }
+            }
 
-                if (mainViewController != null) {
-                    mainViewController.getFilesTabController().shutdownExecutorService();
-                }
-            } catch (IOException e) {
-                throw new RuntimeException(e);
+            if (mainViewController != null) {
+                mainViewController.getFilesTabController().shutdownExecutorService();
             }
         });
     }
@@ -109,7 +124,10 @@ public class FileSharingApplication extends Application {
                 showNotification(message, fileInfo.name(), icon);
             });
             sharingClient.getFileTracker().setFileChangeHandler(path -> {
+                Platform.runLater(() -> {
                 mainViewController.updateFilesDisplay();
+
+                });
                 return null;
             });
             sharingClient.start();
